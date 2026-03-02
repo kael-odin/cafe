@@ -27,6 +27,7 @@ import { getApiTypeFromUrl, isValidEndpointUrl, getEndpointUrlError, shouldForce
 import { withRequestQueue, generateQueueKey } from './request-queue'
 import { runInterceptors } from '../interceptors'
 import { applyProviderAdapter } from './provider-adapters'
+import { handleKiroRequest } from '../adapters/kiro.adapter'
 
 export interface RequestHandlerOptions {
   debug?: boolean
@@ -534,6 +535,10 @@ export async function handleMessagesRequest(
       ...options,
       requestModified: interceptResult.intercepted
     })
+  }
+
+  if (configApiType === 'kiro') {
+    return handleKiroRequest(request, config, res, { timeoutMs: options.timeoutMs })
   }
 
   return handleOpenAIConversion(request, config, res, options)

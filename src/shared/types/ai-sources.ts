@@ -171,7 +171,7 @@ export interface AISource {
   /** API endpoint URL (base URL, e.g., https://api.openai.com/v1) */
   apiUrl: string
   /** API type for OpenAI compatible providers (default: chat_completions) */
-  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough'
+  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough' | 'kiro'
 
   // ===== Authentication Credentials (Based on authType) =====
   /** API Key (for authType = 'api-key') */
@@ -266,9 +266,11 @@ export interface BackendRequestConfig {
   key: string
   model?: string
   headers?: Record<string, string>
-  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough'
+  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough' | 'kiro'
   forceStream?: boolean
   filterContent?: boolean
+  /** AWS CodeWhisperer profile ARN (Kiro Desktop auth only) */
+  profileArn?: string
 }
 
 // ============================================================================

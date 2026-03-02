@@ -116,14 +116,15 @@ export async function getStoreAppDetail(
 export async function installStoreApp(
   slug: string,
   spaceId: string | null,
-  userConfig?: Record<string, unknown>
+  userConfig?: Record<string, unknown>,
+  onProgress?: (filesComplete: number, filesTotal: number, currentFile: string) => void,
 ): Promise<StoreControllerResponse<{ appId: string }>> {
   try {
     if (!slug) {
       return { success: false, error: 'App slug is required' }
     }
     // spaceId may be null for global installs (MCP/Skill available across all spaces)
-    const appId = await installFromStore(slug, spaceId, userConfig)
+    const appId = await installFromStore(slug, spaceId, userConfig, onProgress)
     return { success: true, data: { appId } }
   } catch (error: unknown) {
     const err = error as Error

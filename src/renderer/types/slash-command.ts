@@ -15,6 +15,8 @@ export interface SlashCommandItem {
   label: string
   /** One-line description shown as secondary text in the menu */
   description?: string
+  /** CC SDK `argument-hint` — shown after the command, e.g. "[issue-number]" */
+  argumentHint?: string
   /** Category controls grouping and icon choice in the menu */
   category: 'builtin' | 'skill' | 'agent'
 }

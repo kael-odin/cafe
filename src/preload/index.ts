@@ -11,6 +11,7 @@ import type {
   HealthExportResponse,
   HealthCheckResponse
 } from '../shared/types'
+import type { StoreInstallProgress } from '../shared/store/store-types'
 
 // Type definitions for exposed API
 export interface HaloAPI {
@@ -369,7 +370,10 @@ export interface HaloAPI {
   storeQuery: (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }) => Promise<IpcResponse>
   storeListApps: (query: { search?: string; locale?: string; category?: string; type?: string; tags?: string[] }) => Promise<IpcResponse>
   storeGetAppDetail: (slug: string) => Promise<IpcResponse>
-  storeInstall: (input: { slug: string; spaceId: string | null; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
+  storeInstall: (
+    input: { slug: string; spaceId: string | null; userConfig?: Record<string, unknown> },
+    onProgress?: (progress: StoreInstallProgress) => void,
+  ) => Promise<IpcResponse>
   storeRefresh: () => Promise<IpcResponse>
   storeCheckUpdates: () => Promise<IpcResponse>
   storeGetRegistries: () => Promise<IpcResponse>
@@ -669,7 +673,22 @@ const api: HaloAPI = {
   storeQuery: (params) => ipcRenderer.invoke('store:query', params),
   storeListApps: (query) => ipcRenderer.invoke('store:list-apps', query),
   storeGetAppDetail: (slug) => ipcRenderer.invoke('store:get-app-detail', slug),
-  storeInstall: (input) => ipcRenderer.invoke('store:install', input),
+  storeInstall: async (input, onProgress) => {
+    if (!onProgress) {
+      return ipcRenderer.invoke('store:install', input)
+    }
+    // Create a unique per-install channel for progress events (mirrors installGitBash pattern)
+    const progressChannel = `store:install-progress-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const progressHandler = (_event: Electron.IpcRendererEvent, progress: StoreInstallProgress) => {
+      onProgress(progress)
+    }
+    ipcRenderer.on(progressChannel, progressHandler)
+    try {
+      return await ipcRenderer.invoke('store:install', { ...input, progressChannel })
+    } finally {
+      ipcRenderer.removeListener(progressChannel, progressHandler)
+    }
+  },
   storeRefresh: () => ipcRenderer.invoke('store:refresh'),
   storeCheckUpdates: () => ipcRenderer.invoke('store:check-updates'),
   storeGetRegistries: () => ipcRenderer.invoke('store:get-registries'),

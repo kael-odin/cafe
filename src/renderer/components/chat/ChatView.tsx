@@ -29,6 +29,8 @@ import {
 import { api } from '../../api'
 import type { ImageAttachment } from '../../types'
 import type { SlashCommandItem } from '../../types/slash-command'
+import { getSkillMdContent, extractFrontmatterField } from '../../../shared/skill-frontmatter'
+import type { SkillSpec } from '../../../shared/apps/spec-types'
 import { useTranslation } from '../../i18n'
 
 interface ChatViewProps {
@@ -188,37 +190,42 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   // Build the slash-command list for the autocomplete menu.
   // Merges three sources, deduplicating by command string:
   //   1. SDK slash_commands (built-in Claude Code commands)  → category 'builtin'
-  //   2. SDK agents                                          → category 'agent'
-  //   3. Installed + active skills from apps store           → category 'skill'
+  //   2. Installed + active skills from apps store           → category 'skill'
+  //   3. SDK agents                                          → category 'agent'
+  //
+  // When a skill from the store has the same command as an SDK builtin,
+  // we keep the builtin category (SDK handles it natively) but enrich it
+  // with the store's richer metadata (description, argumentHint).
   const slashCommands = useMemo<SlashCommandItem[]>(() => {
     const conversationId = getCurrentConversationId()
     const initInfo = conversationId ? sessionInitInfo.get(conversationId) : null
 
     const items: SlashCommandItem[] = []
-    const seenCommands = new Set<string>()
+    const itemsByCommand = new Map<string, SlashCommandItem>()
 
     const addItem = (item: SlashCommandItem) => {
-      if (!seenCommands.has(item.command)) {
-        seenCommands.add(item.command)
+      if (!itemsByCommand.has(item.command)) {
+        itemsByCommand.set(item.command, item)
         items.push(item)
       }
     }
 
-    // 1. Installed + active skills — listed first so they appear at top of menu
-    apps
-      .filter((app) => app.spec.type === 'skill' && app.status !== 'uninstalled' && app.status !== 'paused')
-      .forEach((app) => {
-        const slug = app.spec.name.toLowerCase().replace(/\s+/g, '-')
-        addItem({
-          id: `skill-${app.id}`,
-          command: `/${slug}`,
-          label: app.spec.name,
-          description: app.spec.description,
-          category: 'skill',
-        })
-      })
+    // Enrich an existing item with richer metadata from a skill app.
+    // Preserves the original category (e.g. 'builtin') while adding
+    // the store's description and argumentHint.
+    const enrichItem = (
+      command: string,
+      extra: { description?: string; argumentHint?: string; label?: string }
+    ) => {
+      const existing = itemsByCommand.get(command)
+      if (!existing) return false
+      if (extra.description && !existing.description) existing.description = extra.description
+      if (extra.argumentHint && !existing.argumentHint) existing.argumentHint = extra.argumentHint
+      if (extra.label && existing.label === existing.command.slice(1)) existing.label = extra.label
+      return true
+    }
 
-    // 2. SDK built-in slash_commands
+    // 1. SDK built-in slash_commands — processed first so their category is authoritative
     if (initInfo?.slashCommands) {
       initInfo.slashCommands.forEach((cmd) => {
         addItem({
@@ -229,6 +236,37 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
         })
       })
     }
+
+    // 2. Installed + active skills from apps store
+    //    If the command already exists as a builtin, enrich it with metadata.
+    //    Otherwise add as a new 'skill' entry.
+    apps
+      .filter((app) => app.spec.type === 'skill' && app.status === 'active')
+      .forEach((app) => {
+        const slug = app.spec.name.toLowerCase().replace(/\s+/g, '-')
+        const command = `/${slug}`
+        // Extract argument-hint from the SKILL.md frontmatter (CC SDK field)
+        const skillMd = getSkillMdContent(app.spec as SkillSpec)
+        const argumentHint = skillMd ? extractFrontmatterField(skillMd, 'argument-hint') : undefined
+
+        // If SDK already registered this command, enrich it with store metadata
+        const enriched = enrichItem(command, {
+          description: app.spec.description,
+          argumentHint,
+          label: app.spec.name,
+        })
+
+        if (!enriched) {
+          addItem({
+            id: `skill-${app.id}`,
+            command,
+            label: app.spec.name,
+            description: app.spec.description,
+            argumentHint,
+            category: 'skill',
+          })
+        }
+      })
 
     // 3. SDK agents
     if (initInfo?.agents) {

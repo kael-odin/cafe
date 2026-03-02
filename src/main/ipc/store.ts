@@ -21,6 +21,7 @@ import { ipcMain } from 'electron'
 import * as storeController from '../controllers/store.controller'
 import { onSyncStatusChanged } from '../store'
 import { sendToRenderer } from '../services/window.service'
+import type { StoreInstallProgress } from '../../shared/store/store-types'
 
 export function registerStoreHandlers(): void {
   // ── store:query (new primary entry point) ─────────────────────────────
@@ -50,8 +51,41 @@ export function registerStoreHandlers(): void {
   // ── store:install ──────────────────────────────────────────────────────
   ipcMain.handle(
     'store:install',
-    async (_event, input: { slug: string; spaceId: string | null; userConfig?: Record<string, unknown> }) => {
-      return storeController.installStoreApp(input.slug, input.spaceId, input.userConfig)
+    async (event, input: { slug: string; spaceId: string | null; userConfig?: Record<string, unknown>; progressChannel?: string }) => {
+      const { slug, spaceId, userConfig, progressChannel } = input
+
+      // Build progress emitter if the renderer provided a channel name
+      const onProgress = progressChannel
+        ? (filesComplete: number, filesTotal: number, currentFile: string) => {
+            const isAllDownloaded = filesTotal > 0 && filesComplete >= filesTotal
+            const progress: StoreInstallProgress = {
+              installId: progressChannel,
+              phase: filesComplete === 0 && filesTotal === 0
+                ? 'fetching-tree'
+                : isAllDownloaded ? 'installing' : 'downloading',
+              filesComplete,
+              filesTotal,
+              currentFile,
+              // Reserve last 10% for the install step; downloading spans 0–90%
+              percent: filesTotal === 0
+                ? 5
+                : isAllDownloaded
+                  ? 90
+                  : Math.round(10 + (filesComplete / filesTotal) * 80),
+              message: filesComplete === 0 && filesTotal === 0
+                ? 'Fetching file list...'
+                : isAllDownloaded
+                  ? 'Installing...'
+                  : `Downloading files (${filesComplete}/${filesTotal})`,
+            }
+            // Guard against destroyed renderer (e.g. window closed mid-install)
+            if (!event.sender.isDestroyed()) {
+              event.sender.send(progressChannel, progress)
+            }
+          }
+        : undefined
+
+      return storeController.installStoreApp(slug, spaceId, userConfig, onProgress)
     }
   )
 

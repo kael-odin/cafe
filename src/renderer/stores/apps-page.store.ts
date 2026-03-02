@@ -14,7 +14,7 @@
 import { create } from 'zustand'
 import { api } from '../api'
 import { getCurrentLanguage } from '../i18n'
-import type { RegistryEntry, StoreAppDetail, UpdateInfo, StoreQuery, StoreQueryResponse } from '../../shared/store/store-types'
+import type { RegistryEntry, StoreAppDetail, UpdateInfo, StoreQuery, StoreQueryResponse, StoreInstallProgress } from '../../shared/store/store-types'
 import type { AppType } from '../../shared/apps/spec-types'
 
 let storeListRequestSeq = 0
@@ -89,7 +89,7 @@ interface AppsPageState {
   setStoreTypeFilter: (type: AppType | null) => void
   selectStoreApp: (slug: string) => Promise<void>
   clearStoreSelection: () => void
-  installFromStore: (slug: string, spaceId: string | null, userConfig?: Record<string, unknown>) => Promise<string | null>
+  installFromStore: (slug: string, spaceId: string | null, userConfig?: Record<string, unknown>, onProgress?: (progress: StoreInstallProgress) => void) => Promise<string | null>
   refreshStore: () => Promise<void>
   checkUpdates: () => Promise<void>
 }
@@ -330,9 +330,9 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
     storeError: null,
   }),
 
-  installFromStore: async (slug, spaceId, userConfig) => {
+  installFromStore: async (slug, spaceId, userConfig, onProgress) => {
     try {
-      const res = await api.storeInstall(slug, spaceId, userConfig)
+      const res = await api.storeInstall(slug, spaceId, userConfig, onProgress)
       if (res.success && (res.data as { appId?: string })?.appId) {
         set({ storeError: null })
         return (res.data as { appId: string }).appId

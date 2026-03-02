@@ -106,13 +106,15 @@ export async function initAppManager(
   // Create the store (prepared statements on the database)
   const store = new AppManagerStore(appDb)
 
+  const getSpacePath = (spaceId: string): string | null => {
+    const space = getSpace(spaceId)
+    return space?.path ?? null
+  }
+
   // Create the service with injected dependencies
   const service = createAppManagerService({
     store,
-    getSpacePath: (spaceId: string): string | null => {
-      const space = getSpace(spaceId)
-      return space?.path ?? null
-    },
+    getSpacePath,
     getGlobalAppDir: () => getHaloDir(),
   })
 

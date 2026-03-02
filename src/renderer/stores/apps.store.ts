@@ -141,19 +141,14 @@ export const useAppsStore = create<AppsState>((set, get) => ({
   // ── App Lifecycle ─────────────────────────
 
   installApp: async (spaceId, spec, userConfig) => {
-    try {
-      const res = await api.appInstall({ spaceId, spec, userConfig })
-      if (res.success && (res.data as { appId?: string })?.appId) {
-        const appId = (res.data as { appId: string }).appId
-        // Reload to get the full InstalledApp record
-        await get().loadApps()
-        return appId
-      }
-      return null
-    } catch (err) {
-      console.error('[AppsStore] installApp error:', err)
-      return null
+    const res = await api.appInstall({ spaceId, spec, userConfig })
+    if (res.success && (res.data as { appId?: string })?.appId) {
+      const appId = (res.data as { appId: string }).appId
+      // Reload to get the full InstalledApp record
+      await get().loadApps()
+      return appId
     }
+    throw new Error(res.error || 'Installation failed')
   },
 
   uninstallApp: async (appId) => {

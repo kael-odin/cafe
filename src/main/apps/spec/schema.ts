@@ -415,6 +415,8 @@ export const McpSpecSchema = AppSpecCommonSchema.extend({
  */
 export const SkillSpecSchema = AppSpecCommonSchema.extend({
   type: z.literal('skill'),
+  /** Author is optional for skills — SKILL.md format does not include an author field */
+  author: z.string().optional(),
   /** Single-file content (manual add / legacy). Used when skill is a single .md file. */
   skill_content: z.string().optional(),
   /** All files in the skill folder, keyed by filename (e.g. { 'SKILL.md': '...' }). Used for registry installs. */

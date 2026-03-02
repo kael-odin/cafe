@@ -19,7 +19,7 @@ import { z } from 'zod'
 import { getConfig, saveConfig as saveHaloConfig } from '../services/config.service'
 import { getAppManager } from '../apps/manager'
 import { getAppRuntime } from '../apps/runtime'
-import type { AppSpec } from '../apps/spec/schema'
+import type { AppSpec, SkillSpec } from '../apps/spec/schema'
 import type {
   RegistryEntry,
   RegistrySource,
@@ -310,7 +310,16 @@ export async function getAppDetail(slug: string): Promise<StoreAppDetail> {
 
   const { entry, registryId } = found
 
-  // Fetch the full spec (with SQLite cache)
+  // For claude-skills sources, skip the GitHub API fetch at browse time.
+  // The detail view only needs entry data (name, description, tags, etc.) which is
+  // already available from the registry index in SQLite — no network call needed.
+  // The full spec (with skill_files) is fetched at install time by installFromStore().
+  const registry = config.registries.find(r => r.id === registryId)
+  if (registry?.sourceType === 'claude-skills') {
+    return { entry, spec: buildPreviewSpec(entry, registryId), registryId }
+  }
+
+  // All other sources: fetch full spec (with SQLite spec cache)
   const spec = await queryService.fetchSpec(entry, registryId, config.registries)
   const specWithStore = withInstallStoreMetadata(spec, entry.slug, registryId)
 
@@ -335,7 +344,8 @@ export async function getAppDetail(slug: string): Promise<StoreAppDetail> {
 export async function installFromStore(
   slug: string,
   spaceId: string | null,
-  userConfig?: Record<string, unknown>
+  userConfig?: Record<string, unknown>,
+  onProgress?: (filesComplete: number, filesTotal: number, currentFile: string) => void,
 ): Promise<string> {
   ensureInitialized()
 
@@ -364,7 +374,7 @@ export async function installFromStore(
     throw new Error(`Registry not found: ${registryId}`)
   }
   const adapter = getAdapter(registry)
-  const spec = await adapter.fetchSpec(registry, entry)
+  const spec = await adapter.fetchSpec(registry, entry, onProgress)
   const specWithStore = withInstallStoreMetadata(spec, entry.slug, registryId)
 
   // Delegate to App Manager
@@ -388,6 +398,60 @@ export async function installFromStore(
 
   console.log(`[RegistryService] Installed "${entry.name}" (${slug}) as ${appId} in space ${spaceId}`)
   return appId
+}
+
+// ============================================
+// Private helpers
+// ============================================
+
+/**
+ * Build a lightweight AppSpec from RegistryEntry data for the browse/detail view.
+ *
+ * Does NOT fetch from GitHub — avoids consuming API quota on page navigation.
+ * The full spec (with skill_files populated) is fetched at install time via
+ * installFromStore() → adapter.fetchSpec().
+ *
+ * Only used for claude-skills sources where the registry index already contains
+ * all data needed to render the detail page (name, description, tags, etc.).
+ */
+function buildPreviewSpec(entry: RegistryEntry, registryId: string): AppSpec {
+  const store = { slug: entry.slug, registry_id: registryId }
+  const requires = (entry.requires_mcps?.length || entry.requires_skills?.length)
+    ? {
+        mcps: entry.requires_mcps?.map(id => ({ id })),
+        skills: entry.requires_skills,
+      }
+    : undefined
+
+  // Skills are the only type sourced from claude-skills, but handle others defensively
+  if (entry.type === 'skill') {
+    const spec: SkillSpec = {
+      spec_version: '1',
+      name: entry.name,
+      type: 'skill',
+      version: entry.version,
+      author: entry.author,
+      description: entry.description,
+      requires,
+      i18n: entry.i18n,
+      skill_files: {}, // empty — populated at install time
+      store,
+    }
+    return spec
+  }
+
+  // Fallback for any other entry types
+  return {
+    spec_version: '1',
+    name: entry.name,
+    type: entry.type,
+    version: entry.version,
+    author: entry.author,
+    description: entry.description,
+    requires,
+    i18n: entry.i18n,
+    store,
+  } as AppSpec
 }
 
 // ============================================

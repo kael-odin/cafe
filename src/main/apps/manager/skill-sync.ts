@@ -16,6 +16,7 @@ import { join, resolve, dirname, normalize, sep } from 'path'
 import { app } from 'electron'
 import type { InstalledApp } from './types'
 import type { SkillSpec } from '../../apps/spec/schema'
+import { normalizeSkillMd } from '../../../shared/skill-frontmatter'
 
 /**
  * Get the global Claude config skills directory.
@@ -125,7 +126,10 @@ export function syncSkillToFilesystem(
     if (targetDir !== resolvedSkillDir) {
       mkdirSync(targetDir, { recursive: true })
     }
-    writeFileSync(target, content, 'utf-8')
+    // Normalize SKILL.md frontmatter for CC SDK compatibility before writing.
+    // Other files are written as-is.
+    const fileContent = filename === 'SKILL.md' ? normalizeSkillMd(content) : content
+    writeFileSync(target, fileContent, 'utf-8')
   }
 
   const scope = appRecord.spaceId === null ? 'global' : 'space'

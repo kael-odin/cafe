@@ -226,6 +226,7 @@ async function processFileListAsFolder(fileList: FileList): Promise<ParsedSkill>
  * Uses fflate (pure-JS, no Node.js required).
  * Supports both flat ZIPs (SKILL.md at root) and wrapped ZIPs
  * (all files inside a single top-level folder).
+ * macOS metadata injected by Finder (__MACOSX/, ._*, .DS_Store) is ignored.
  */
 async function processZipFile(file: File): Promise<ParsedSkill> {
   const { unzipSync } = await import('fflate')
@@ -237,10 +238,13 @@ async function processZipFile(file: File): Promise<ParsedSkill> {
     throw new Error('Could not extract ZIP. Make sure the file is a valid ZIP archive.')
   }
 
-  // Build a raw map (skip directory-only entries)
+  // Build a raw map (skip directory-only entries and macOS metadata)
   const rawFiles: Record<string, string> = {}
   for (const [path, bytes] of Object.entries(entries)) {
     if (path.endsWith('/')) continue // directory entry
+    // Skip macOS-injected metadata (Finder adds these automatically when compressing)
+    if (path.startsWith('__MACOSX/')) continue
+    if (path.split('/').some(seg => seg === '.DS_Store' || seg.startsWith('._'))) continue
     rawFiles[path] = new TextDecoder('utf-8').decode(bytes)
   }
 
@@ -669,7 +673,6 @@ export function SkillInstallDialog({ onClose }: SkillInstallDialogProps) {
       const fullSpec: SkillSpec = {
         spec_version: '1.0',
         version: '1.0',
-        author: '',
         ...spec,
       }
 

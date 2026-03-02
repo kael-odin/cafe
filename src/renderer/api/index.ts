@@ -1541,9 +1541,14 @@ export const api = {
     return httpRequest('GET', `/api/store/apps/${slug}`)
   },
 
-  storeInstall: async (slug: string, spaceId: string | null, userConfig?: Record<string, unknown>): Promise<ApiResponse> => {
+  storeInstall: async (
+    slug: string,
+    spaceId: string | null,
+    userConfig?: Record<string, unknown>,
+    onProgress?: Parameters<typeof window.halo.storeInstall>[1],
+  ): Promise<ApiResponse> => {
     if (isElectron()) {
-      return window.halo.storeInstall({ slug, spaceId, userConfig })
+      return window.halo.storeInstall({ slug, spaceId, userConfig }, onProgress)
     }
     return httpRequest('POST', `/api/store/apps/${slug}/install`, { spaceId, userConfig })
   },

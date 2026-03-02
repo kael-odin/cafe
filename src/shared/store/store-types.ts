@@ -204,6 +204,28 @@ export interface StoreAppDetail {
 }
 
 // ============================================
+// Install Progress
+// ============================================
+
+/** Progress event pushed from main process to renderer during skill installation */
+export interface StoreInstallProgress {
+  /** Unique ID for this install operation (matches the progressChannel) */
+  installId: string
+  /** Current phase of installation */
+  phase: 'fetching-tree' | 'downloading' | 'installing' | 'done' | 'error'
+  /** Number of files downloaded so far */
+  filesComplete: number
+  /** Total number of files to download (0 until tree is fetched) */
+  filesTotal: number
+  /** Name of the file currently being downloaded */
+  currentFile: string
+  /** 0–100 percentage */
+  percent: number
+  /** Human-readable status message */
+  message: string
+}
+
+// ============================================
 // Update Information
 // ============================================
 

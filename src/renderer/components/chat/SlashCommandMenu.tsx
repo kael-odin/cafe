@@ -181,6 +181,9 @@ export function SlashCommandMenu({
                 <span className={`font-mono text-sm shrink-0 truncate
                   ${isSelected ? 'text-primary' : 'text-primary/80'}`}>
                   {item.command}
+                  {item.argumentHint && (
+                    <span className="text-muted-foreground/50 ml-1 font-normal">{item.argumentHint}</span>
+                  )}
                 </span>
 
                 {/* Description — secondary, truncated */}

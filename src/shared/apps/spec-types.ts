@@ -305,8 +305,10 @@ export interface McpSpec extends AppSpecCommon {
 }
 
 /** Skill — external community format (Claude SKILL.md) */
-export interface SkillSpec extends AppSpecCommon {
+export interface SkillSpec extends Omit<AppSpecCommon, 'author'> {
   type: 'skill'
+  /** Author is optional for skills — SKILL.md format does not include an author field */
+  author?: string
   /** Single-file content (manual add / legacy) */
   skill_content?: string
   /** All files in the skill folder, keyed by filename. Used for registry installs. */

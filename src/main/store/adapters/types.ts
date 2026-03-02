@@ -42,6 +42,15 @@ export interface RegistryAdapter {
   /**
    * Fetch (or construct) the full AppSpec for a single registry entry.
    * All adapters must implement this.
+   *
+   * @param onProgress Optional callback fired as files are downloaded.
+   *                   (filesComplete, filesTotal, currentFile)
+   *                   Only meaningful for adapters that download multiple files
+   *                   (e.g. ClaudeSkillsAdapter). Other adapters may ignore it.
    */
-  fetchSpec(source: RegistrySource, entry: RegistryEntry): Promise<AppSpec>
+  fetchSpec(
+    source: RegistrySource,
+    entry: RegistryEntry,
+    onProgress?: (filesComplete: number, filesTotal: number, currentFile: string) => void,
+  ): Promise<AppSpec>
 }

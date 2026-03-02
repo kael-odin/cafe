@@ -11,7 +11,7 @@ import { useSpaceStore } from '../../stores/space.store'
 import { useAppsPageStore } from '../../stores/apps-page.store'
 import { useTranslation, getCurrentLanguage } from '../../i18n'
 import { resolveSpecI18n } from '../../utils/spec-i18n'
-import type { StoreAppDetail } from '../../../shared/store/store-types'
+import type { StoreAppDetail, StoreInstallProgress } from '../../../shared/store/store-types'
 import type { InputDef } from '../../../shared/apps/spec-types'
 
 // Sentinel value used in <select> to represent spaceId = null (global)
@@ -47,6 +47,7 @@ export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOpt
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState<StoreInstallProgress | null>(null)
 
   // Dynamic config form state — use resolved schema for translated display text;
   // field.key and field.required are preserved unchanged by resolveSpecI18n.
@@ -70,6 +71,7 @@ export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOpt
 
   const handleInstall = useCallback(async () => {
     setError(null)
+    setProgress(null)
     setLoading(true)
 
     try {
@@ -107,6 +109,7 @@ export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOpt
         detail.entry.slug,
         resolvedSpaceId,
         Object.keys(userConfig).length > 0 ? userConfig : undefined,
+        setProgress,
       )
 
       if (appId) {
@@ -118,6 +121,7 @@ export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOpt
       setError(err instanceof Error ? err.message : t('Installation failed'))
     } finally {
       setLoading(false)
+      setProgress(null)
     }
   }, [configSchema, configValues, detail.entry.slug, selectedSpaceId, installFromStore, onInstalled, t])
 
@@ -193,6 +197,24 @@ export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOpt
             <p className="text-xs text-red-400">{error}</p>
           )}
         </div>
+
+        {/* Install progress bar (shown while downloading) */}
+        {loading && progress && (
+          <div className="px-4 pt-2 pb-1 space-y-1 border-t border-border flex-shrink-0">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{progress.message}</span>
+              {progress.filesTotal > 0 && (
+                <span>{progress.filesComplete}/{progress.filesTotal}</span>
+              )}
+            </div>
+            <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-200"
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">

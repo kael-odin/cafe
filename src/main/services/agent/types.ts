@@ -23,8 +23,8 @@ export interface ApiCredentials {
   provider: 'anthropic' | 'openai' | 'oauth'
   /** Custom headers for OAuth providers */
   customHeaders?: Record<string, string>
-  /** API type for OpenAI compatible providers */
-  apiType?: 'chat_completions' | 'responses'
+  /** API type for the backend provider */
+  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough' | 'kiro'
   /** Force streaming mode (for providers that only support streaming) */
   forceStream?: boolean
   /** Filter sensitive content from messages (e.g., GitHub URLs) */
