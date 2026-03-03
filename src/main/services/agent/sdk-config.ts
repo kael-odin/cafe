@@ -316,6 +316,18 @@ export function buildSdkEnv(params: SdkEnvParams): Record<string, string | numbe
     // DEBUG_CLAUDE_AGENT_SDK: '1',
   }
 
+  // Normalize proxy env vars: add http:// if protocol is missing.
+  // Some Windows users (esp. with Clash/V2Ray) set HTTPS_PROXY=127.0.0.1:7890
+  // without protocol prefix. The Claude Code CLI's Anthropic SDK does
+  // new URL(process.env.HTTPS_PROXY) which throws ERR_INVALID_URL.
+  // NO_PROXY check happens AFTER URL parsing, so it can't prevent the crash.
+  for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']) {
+    const val = env[key]
+    if (typeof val === 'string' && val && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(val)) {
+      env[key] = `http://${val}`
+    }
+  }
+
   return env as Record<string, string | number>
 }
 

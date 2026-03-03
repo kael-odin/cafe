@@ -202,10 +202,14 @@ class AISourceManager {
     // API Key: build config directly
     const isAnthropic = isAnthropicProvider(source.provider)
 
-    // Normalize URL: Anthropic uses base URL, OpenAI compatible needs /chat/completions suffix
-    const normalizedUrl = isAnthropic
-      ? source.apiUrl
-      : normalizeApiUrl(source.apiUrl, 'openai')
+    // Normalize URL: ensure protocol prefix, then apply provider-specific normalization
+    let normalizedUrl = source.apiUrl
+    if (normalizedUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(normalizedUrl)) {
+      normalizedUrl = `http://${normalizedUrl}`
+    }
+    normalizedUrl = isAnthropic
+      ? normalizedUrl
+      : normalizeApiUrl(normalizedUrl, 'openai')
 
     // Build backend config
     const config: BackendRequestConfig = {
@@ -294,9 +298,13 @@ class AISourceManager {
 
     // API Key: build config directly
     const isAnthropic = isAnthropicProvider(source.provider)
-    const normalizedUrl = isAnthropic
-      ? source.apiUrl
-      : normalizeApiUrl(source.apiUrl, 'openai')
+    let normalizedUrl = source.apiUrl
+    if (normalizedUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(normalizedUrl)) {
+      normalizedUrl = `http://${normalizedUrl}`
+    }
+    normalizedUrl = isAnthropic
+      ? normalizedUrl
+      : normalizeApiUrl(normalizedUrl, 'openai')
 
     const config: BackendRequestConfig = {
       url: normalizedUrl,
