@@ -25,15 +25,14 @@ const GUIDE_STATE_KEY = 'halo-space-guide-expanded'
 export function SpaceGuide() {
   const { t } = useTranslation()
 
-  // Read initial state from localStorage, default to collapsed
+  // Read initial state from localStorage
+  // First-time users (no saved value) see expanded guide; returning users keep their preference
   const [isExpanded, setIsExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(GUIDE_STATE_KEY)
-      // Default to collapsed (false) for returning users
-      // First time users will see collapsed, can expand if curious
-      return saved === 'true'
+      return saved === null ? true : saved === 'true'
     }
-    return false
+    return true
   })
 
   // Persist state to localStorage

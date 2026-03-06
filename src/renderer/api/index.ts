@@ -1195,6 +1195,15 @@ export const api = {
     return window.halo.installGitBash(onProgress)
   },
 
+  openLoginWindow: async (url: string, title?: string): Promise<ApiResponse> => {
+    if (!isElectron()) {
+      // In remote mode, open in new tab
+      window.open(url, '_blank')
+      return { success: true }
+    }
+    return window.halo.openLoginWindow(url, title)
+  },
+
   openExternal: async (url: string): Promise<void> => {
     if (!isElectron()) {
       // In remote mode, open in new tab
@@ -1454,6 +1463,22 @@ export const api = {
     return { success: false, error: 'Not supported outside Electron' }
   },
 
+  appGetDataPath: async (appId: string): Promise<ApiResponse<{ path: string }>> => {
+    if (isElectron()) {
+      return window.halo.appGetDataPath(appId)
+    }
+    // No filesystem access in web mode
+    return { success: false, error: 'Not supported outside Electron' }
+  },
+
+  appOpenDataFolder: async (appId: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.appOpenDataFolder(appId)
+    }
+    // No filesystem access in web mode
+    return { success: false, error: 'Not supported outside Electron' }
+  },
+
   appMoveSpace: async (appId: string, newSpaceId: string | null): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.appMoveSpace({ appId, newSpaceId })
@@ -1462,7 +1487,7 @@ export const api = {
   },
 
   // App Chat
-  appChatSend: async (request: { appId: string; spaceId: string; message: string; thinkingEnabled?: boolean }): Promise<ApiResponse> => {
+  appChatSend: async (request: { appId: string; spaceId: string; message: string; images?: Array<{ type: string; media_type: string; data: string }>; thinkingEnabled?: boolean }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.appChatSend(request)
     }
@@ -1495,6 +1520,13 @@ export const api = {
       return window.halo.appChatSessionState(appId)
     }
     return httpRequest('GET', `/api/apps/${appId}/chat/session-state`)
+  },
+
+  appChatClear: async (appId: string, spaceId: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.appChatClear({ appId, spaceId })
+    }
+    return httpRequest('POST', `/api/apps/${appId}/chat/clear`, { spaceId })
   },
 
   // App Event Listeners

@@ -288,6 +288,17 @@ export const RequiresSchema = z.object({
 })
 
 // ============================================
+// Browser Login Entry
+// ============================================
+
+export const BrowserLoginEntrySchema = z.object({
+  /** URL the user should navigate to for login */
+  url: z.string().url(),
+  /** Display label for the website (e.g. "小红书") */
+  label: nonEmptyString,
+})
+
+// ============================================
 // Escalation Config
 // ============================================
 
@@ -346,6 +357,11 @@ const I18nLocaleBlockSchema = z.object({
       options: z.record(z.string(), z.string()).optional(),
     })
   ).optional(),
+  /** Per-URL label overrides for browser_login entries */
+  browser_login: z.record(
+    z.string(),
+    z.object({ label: z.string().optional() })
+  ).optional(),
 })
 
 /**
@@ -397,6 +413,8 @@ export const AutomationSpecSchema = AppSpecCommonSchema.extend({
   escalation: EscalationConfigSchema.optional(),
   /** Optional model recommendation (informational only) */
   recommended_model: z.string().optional(),
+  /** Websites the user needs to log into before the automation can run */
+  browser_login: z.array(BrowserLoginEntrySchema).optional(),
 })
 
 /**

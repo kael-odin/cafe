@@ -20,6 +20,8 @@
  * - Frontend subscribes to agent:* events filtered by this conversationId
  */
 
+import { writeFile } from 'fs/promises'
+import { join } from 'path'
 import { getAppManager } from '../manager'
 import { resolvePermission } from '../../../shared/apps/app-types'
 import type { MemoryCallerScope } from '../../platform/memory'
@@ -28,13 +30,15 @@ import {
   getApiCredentials,
   getApiCredentialsForSource,
   getWorkingDir,
-  getHeadlessElectronPath
+  getHeadlessElectronPath,
+  getDbMcpServers
 } from '../../services/agent/helpers'
 import { emitAgentEvent } from '../../services/agent/events'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from '../../services/agent/sdk-config'
 import { createAIBrowserMcpServer, createScopedBrowserContext } from '../../services/ai-browser'
 import type { BrowserContext } from '../../services/ai-browser/context'
 import { processStream } from '../../services/agent/stream-processor'
+import { buildMessageContent } from '../../services/agent/message-utils'
 import {
   getOrCreateV2Session,
   closeV2Session,
@@ -62,6 +66,8 @@ export interface AppChatRequest {
   spaceId: string
   /** User's message text */
   message: string
+  /** Optional image attachments (same format as main chat) */
+  images?: Array<{ type: string; media_type: string; data: string }>
   /** Enable extended thinking mode */
   thinkingEnabled?: boolean
 }
@@ -107,7 +113,7 @@ const scopedContexts = new Map<string, BrowserContext>()
 export async function sendAppChatMessage(
   request: AppChatRequest
 ): Promise<void> {
-  const { appId, spaceId, message, thinkingEnabled } = request
+  const { appId, spaceId, message, images, thinkingEnabled } = request
   const conversationId = getAppChatConversationId(appId)
 
   console.log(`[AppChat][${appId}] sendMessage: "${message.substring(0, 100)}"`)
@@ -154,6 +160,9 @@ export async function sendAppChatMessage(
   // ── 4. Build MCP servers ─────────────────────────────
   const memoryMcpServer = createMemoryStatusMcpServer(memoryScope)
 
+  // Include user-installed external MCPs (same as regular space chat)
+  const dbMcpServers = getDbMcpServers(spaceId)
+
   // Get or create scoped browser context for this chat session
   let scopedBrowserCtx: BrowserContext | undefined
   if (usesAIBrowser) {
@@ -166,6 +175,7 @@ export async function sendAppChatMessage(
   }
 
   const mcpServers: Record<string, any> = {
+    ...(dbMcpServers ?? {}),
     'halo-memory': memoryMcpServer,
     ...(usesAIBrowser ? { 'ai-browser': createAIBrowserMcpServer(scopedBrowserCtx, workDir) } : {}),
   }
@@ -229,12 +239,14 @@ export async function sendAppChatMessage(
     }
 
     // ── 8. Process stream ──────────────────────────────
+    const messageContent = buildMessageContent(message, images)
+
     await processStream({
       v2Session,
       sessionState,
       spaceId,
       conversationId,
-      messageContent: message,
+      messageContent,
       displayModel: resolvedCreds.displayModel,
       abortController,
       t0,
@@ -363,5 +375,34 @@ export function cleanupAppChatBrowserContext(appId: string): void {
     ctx.destroy()
     scopedContexts.delete(conversationId)
     console.log(`[AppChat][${appId}] Scoped browser context cleaned up`)
+  }
+}
+
+/**
+ * Clear all chat history for an app, resetting to a fresh session.
+ * Closes the V2 session, cleans up browser context, and empties the JSONL file.
+ *
+ * @param appId - App ID
+ * @param spaceId - Space ID (for resolving JSONL path)
+ */
+export async function clearAppChat(appId: string, spaceId: string): Promise<void> {
+  const conversationId = getAppChatConversationId(appId)
+
+  // 1. Close V2 session to force fresh session on next message
+  closeV2Session(conversationId)
+
+  // 2. Clean up browser context
+  cleanupAppChatBrowserContext(appId)
+
+  // 3. Clear the JSONL file
+  const space = getSpace(spaceId)
+  if (space?.path) {
+    const filePath = join(space.path, '.halo', 'apps', appId, 'runs', `${CHAT_RUN_ID}.jsonl`)
+    try {
+      await writeFile(filePath, '', 'utf8')
+    } catch {
+      // File may not exist yet, that's fine
+    }
+    console.log(`[AppChat][${appId}] Chat history cleared`)
   }
 }

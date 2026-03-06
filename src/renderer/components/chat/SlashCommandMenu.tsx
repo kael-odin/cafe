@@ -3,11 +3,12 @@
  *
  * Behaviour:
  *  - Appears above the textarea when the user types "/" at the start of the input.
- *  - Filters items in real-time as the user types after the slash.
+ *  - Receives a pre-filtered, pre-sorted list from InputArea — rendering only.
  *  - Groups items into two sections: Skills / Built-in.
  *  - The selected row is highlighted; selection is driven by the parent via `selectedIndex`.
  *  - Clicking a row calls `onSelect`; clicking outside calls `onClose`.
  *  - The menu scrolls the selected row into view automatically.
+ *  - Never renders when items is empty — parent controls visibility.
  *
  * Keyboard navigation is intentionally delegated to InputArea so that the textarea
  * keeps focus throughout — this component is purely presentational.
@@ -19,7 +20,7 @@
  *  - Category badge: neutral muted pill, no bright colours.
  */
 
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef } from 'react'
 import type { SlashCommandItem } from '../../types/slash-command'
 import { useTranslation } from '../../i18n'
 
@@ -27,11 +28,9 @@ import { useTranslation } from '../../i18n'
 const MAX_VISIBLE_ROWS = 8
 
 interface SlashCommandMenuProps {
-  /** Full list of available commands — filtering is done here */
+  /** Pre-filtered, pre-sorted list of commands — computed by InputArea, not here */
   items: SlashCommandItem[]
-  /** Text after the leading "/" used to filter the list */
-  filter: string
-  /** Index into the *filtered* list that is currently selected */
+  /** Index into `items` that is currently selected */
   selectedIndex: number
   /** Called when the user clicks or presses Enter/Tab on a row */
   onSelect: (item: SlashCommandItem) => void
@@ -76,7 +75,6 @@ export function filterSlashCommands(items: SlashCommandItem[], filter: string): 
 
 export function SlashCommandMenu({
   items,
-  filter,
   selectedIndex,
   onSelect,
   onClose,
@@ -84,8 +82,6 @@ export function SlashCommandMenu({
   const { t } = useTranslation()
   const menuRef = useRef<HTMLDivElement>(null)
   const selectedRowRef = useRef<HTMLButtonElement>(null)
-
-  const filtered = useMemo(() => filterSlashCommands(items, filter), [items, filter])
 
   // Scroll the selected row into view whenever selectedIndex changes
   useEffect(() => {
@@ -103,18 +99,9 @@ export function SlashCommandMenu({
     return () => document.removeEventListener('mousedown', handler)
   }, [onClose])
 
-  if (filtered.length === 0) {
-    return (
-      <div
-        ref={menuRef}
-        className="absolute bottom-full left-0 mb-2 w-full max-w-sm
-          bg-popover border border-border rounded-xl shadow-lg z-30
-          px-3 py-2 text-sm text-muted-foreground"
-      >
-        {t('No commands found')}
-      </div>
-    )
-  }
+  // Parent guarantees items.length > 0 before rendering this component.
+  // Guard defensively to avoid an empty popup flash on edge cases.
+  if (items.length === 0) return null
 
   // Build row list with section headers inserted before each category change
   const rows: Array<
@@ -122,7 +109,7 @@ export function SlashCommandMenu({
     | { type: 'item'; item: SlashCommandItem; index: number }
   > = []
   let lastCategory: SlashCommandItem['category'] | null = null
-  filtered.forEach((item, idx) => {
+  items.forEach((item, idx) => {
     if (item.category !== lastCategory) {
       rows.push({ type: 'header', category: item.category })
       lastCategory = item.category

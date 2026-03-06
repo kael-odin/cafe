@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { ChevronLeft, ChevronDown, ChevronUp, Loader2, Check, Download, AlertCircle, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronDown, ChevronUp, Loader2, Check, Download, AlertCircle, RotateCcw, Globe } from 'lucide-react'
 import { useAppsPageStore } from '../../stores/apps-page.store'
 import { useAppsStore } from '../../stores/apps.store'
 import { STORE_CATEGORY_META } from '../../../shared/store/store-types'
@@ -412,6 +412,30 @@ export function StoreDetail() {
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Browser Login Requirements */}
+          {spec.type === 'automation' && spec.browser_login && spec.browser_login.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('Required Logins')}
+              </h2>
+              <div className="space-y-1.5">
+                {(resolvedSpec?.browser_login ?? spec.browser_login).map(entry => (
+                  <div
+                    key={entry.url}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                    <span className="text-sm text-foreground">{entry.label}</span>
+                    <span className="text-xs text-muted-foreground ml-auto truncate max-w-[200px]">{entry.url}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('This automation requires you to be logged in to the above websites in the Halo browser.')}
+              </p>
             </div>
           )}
 

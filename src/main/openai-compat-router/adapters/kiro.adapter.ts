@@ -30,12 +30,17 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
 
 /**
  * Thinking mode configuration (matches kiro-gateway config.py)
- * FAKE_REASONING_ENABLED: Enable extended thinking mode (default: true)
- * FAKE_REASONING_MAX_TOKENS: Maximum thinking tokens (default: 32000)
+ *
+ * These are now FALLBACK defaults. The primary control comes from request.thinking
+ * which is set by the frontend toggle via SDK's setMaxThinkingTokens().
+ *
+ * DEFAULT_THINKING_ENABLED: Fallback when request.thinking is undefined (default: false)
+ *   - Set to false so thinking is OFF by default unless explicitly enabled by frontend
+ * DEFAULT_THINKING_MAX_TOKENS: Fallback max tokens when not specified in request (default: 32000)
  * TRUNCATION_RECOVERY: Enable truncation recovery notifications (default: false)
  */
-const FAKE_REASONING_ENABLED = process.env.FAKE_REASONING_ENABLED !== 'false' // default true
-const FAKE_REASONING_MAX_TOKENS = parseInt(process.env.FAKE_REASONING_MAX_TOKENS || '32000', 10)
+const DEFAULT_THINKING_ENABLED = process.env.FAKE_REASONING_ENABLED === 'true' // default false (was true)
+const DEFAULT_THINKING_MAX_TOKENS = parseInt(process.env.FAKE_REASONING_MAX_TOKENS || '32000', 10)
 const TRUNCATION_RECOVERY = process.env.TRUNCATION_RECOVERY === 'true' // default false
 
 /**
@@ -97,7 +102,8 @@ function normalizeModelName(name: string): string {
  */
 function getModelIdForKiro(modelName: string): string {
   const normalized = normalizeModelName(modelName)
-  return HIDDEN_MODELS[normalized] ?? normalized
+  const result = HIDDEN_MODELS[normalized] ?? normalized
+  return result
 }
 
 // ============================================================================
@@ -114,10 +120,12 @@ function getModelIdForKiro(modelName: string): string {
  * tags in user messages are legitimate system-level instructions,
  * not prompt injection attempts.
  *
+ * @param thinkingEnabled - Whether thinking mode is enabled (from request.thinking or fallback)
+ *
  * Port of get_thinking_system_prompt_addition() from kiro-gateway/kiro/converters_core.py:271-298
  */
-function getThinkingSystemPromptAddition(): string {
-  if (!FAKE_REASONING_ENABLED) return ''
+function getThinkingSystemPromptAddition(thinkingEnabled: boolean): string {
+  if (!thinkingEnabled) return ''
 
   return (
     '\n\n---\n' +
@@ -160,14 +168,18 @@ function getTruncationRecoverySystemAddition(): string {
 /**
  * Inject fake reasoning tags into content.
  *
- * When FAKE_REASONING_ENABLED is True, this function prepends the special
+ * When thinking mode is enabled, this function prepends the special
  * thinking mode tags to the content. These tags instruct the model to
  * include its reasoning process in the response.
  *
+ * @param content - The original message content
+ * @param thinkingEnabled - Whether thinking mode is enabled (from request.thinking or fallback)
+ * @param maxTokens - Maximum thinking tokens (from request.thinking.budget_tokens or fallback)
+ *
  * Port of inject_thinking_tags() from kiro-gateway/kiro/converters_core.py:328-366
  */
-function injectThinkingTags(content: string): string {
-  if (!FAKE_REASONING_ENABLED) return content
+function injectThinkingTags(content: string, thinkingEnabled: boolean, maxTokens: number): string {
+  if (!thinkingEnabled) return content
 
   // Thinking instruction to improve reasoning quality
   const thinkingInstruction = (
@@ -185,7 +197,7 @@ function injectThinkingTags(content: string): string {
 
   const thinkingPrefix = (
     `<thinking_mode>enabled</thinking_mode>\n` +
-    `<max_thinking_length>${FAKE_REASONING_MAX_TOKENS}</max_thinking_length>\n` +
+    `<max_thinking_length>${maxTokens}</max_thinking_length>\n` +
     `<thinking_instruction>${thinkingInstruction}</thinking_instruction>\n\n`
   )
 
@@ -685,6 +697,15 @@ export function buildKiroPayload(
 
   const modelId = getModelIdForKiro(request.model)
 
+  // Determine thinking mode from request.thinking (set by frontend toggle via SDK)
+  // Fall back to env var defaults for backward compatibility
+  const thinkingEnabled = request.thinking?.type === 'enabled'
+    ? true
+    : request.thinking?.type === 'disabled'
+      ? false
+      : DEFAULT_THINKING_ENABLED
+  const thinkingMaxTokens = request.thinking?.budget_tokens ?? DEFAULT_THINKING_MAX_TOKENS
+
   // Step 1: Convert Anthropic → unified format
   const { systemPrompt: baseSystemPrompt, messages: rawMessages } = convertAnthropicToUnified(
     request.messages,
@@ -693,7 +714,7 @@ export function buildKiroPayload(
 
   // Build full system prompt with thinking mode and truncation recovery additions
   let systemPrompt = baseSystemPrompt
-  const thinkingAddition = getThinkingSystemPromptAddition()
+  const thinkingAddition = getThinkingSystemPromptAddition(thinkingEnabled)
   if (thinkingAddition) {
     systemPrompt = systemPrompt ? systemPrompt + thinkingAddition : thinkingAddition.trim()
   }
@@ -759,7 +780,7 @@ export function buildKiroPayload(
   // This must happen AFTER all system prompt handling and BEFORE putting into payload
   // Port of inject_thinking_tags() call from kiro-gateway/kiro/converters_core.py:1485-1486
   if (currentMsg.role === 'user') {
-    currentContent = injectThinkingTags(currentContent)
+    currentContent = injectThinkingTags(currentContent, thinkingEnabled, thinkingMaxTokens)
   }
 
   // Build userInputMessage
@@ -1225,7 +1246,8 @@ class ThinkingTagParser {
 // ============================================================================
 
 function sseEvent(res: ExpressResponse, eventName: string, data: unknown): void {
-  res.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`)
+  const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`
+  res.write(payload)
 }
 
 function generateMessageId(): string {
@@ -1310,6 +1332,26 @@ async function streamKiroResponseAsAnthropicSSE(
           // Parse thinking tags
           const { thinking, text: regularText, thinkingStarted, thinkingEnded } = thinkingParser.feed(text)
 
+          // If thinking starts in this chunk and there's text before <thinking>, emit text first
+          if (thinkingStarted && regularText) {
+            if (!textBlockOpen) {
+              sseEvent(res, 'content_block_start', {
+                type: 'content_block_start',
+                index: blockIndex,
+                content_block: { type: 'text', text: '' }
+              })
+              textBlockOpen = true
+            }
+            sseEvent(res, 'content_block_delta', {
+              type: 'content_block_delta',
+              index: blockIndex,
+              delta: { type: 'text_delta', text: regularText }
+            })
+            sseEvent(res, 'content_block_stop', { type: 'content_block_stop', index: blockIndex })
+            blockIndex++
+            textBlockOpen = false
+          }
+
           // Emit thinking content
           if (thinkingStarted) {
             // Close any open text block before starting thinking
@@ -1341,8 +1383,8 @@ async function streamKiroResponseAsAnthropicSSE(
             thinkingBlockOpen = false
           }
 
-          // Emit regular text content
-          if (regularText) {
+          // Emit regular text content (skip if already emitted above before thinking started)
+          if (regularText && !thinkingStarted) {
             if (!textBlockOpen) {
               sseEvent(res, 'content_block_start', {
                 type: 'content_block_start',
@@ -1649,6 +1691,12 @@ export async function handleKiroRequest(
       res.setHeader('Cache-Control', 'no-cache')
       res.setHeader('Connection', 'keep-alive')
       res.setHeader('X-Accel-Buffering', 'no')
+
+      // Force immediate delivery of SSE events (disable buffering)
+      res.flushHeaders()
+      if (res.socket) {
+        res.socket.setNoDelay(true)
+      }
 
       try {
         await streamKiroResponseAsAnthropicSSE(upstreamResp.body, res, anthropicRequest.model)

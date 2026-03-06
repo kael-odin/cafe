@@ -29,6 +29,8 @@
  *   app:export-spec        Export an app's spec as a YAML string
  *   app:import-spec        Install an app from a YAML spec string
  *   app:open-skill-folder  Reveal a skill's on-disk directory in the OS file manager
+ *   app:get-data-path      Get an app's data/memory directory path
+ *   app:open-data-folder   Reveal an automation app's data/memory directory in the OS file manager
  */
 
 import { ipcMain, shell } from 'electron'
@@ -43,6 +45,7 @@ import {
   loadAppChatMessages,
   getAppChatSessionState,
   getAppChatConversationId,
+  clearAppChat,
 } from '../apps/runtime'
 import type { AppSpec } from '../apps/spec'
 import type { AppListFilter, UninstallOptions } from '../apps/manager'
@@ -615,6 +618,22 @@ export function registerAppHandlers(): void {
     }
   )
 
+  // ── app:chat-clear ────────────────────────────────────────────────────
+  ipcMain.handle(
+    'app:chat-clear',
+    async (_event, input: { appId: string; spaceId: string }) => {
+      try {
+        clearAppChat(input.appId, input.spaceId)
+        console.log(`[AppIPC] app:chat-clear: appId=${input.appId}`)
+        return { success: true }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:chat-clear error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
   // ── app:export-spec ────────────────────────────────────────────────────
   ipcMain.handle(
     'app:export-spec',
@@ -688,6 +707,58 @@ export function registerAppHandlers(): void {
     }
   )
 
+  // ── app:get-data-path ──────────────────────────────────────────────────
+  ipcMain.handle(
+    'app:get-data-path',
+    async (_event, appId: string) => {
+      try {
+        const r = requireManager()
+        if (!r.success) return r
+
+        const app = r.manager.getApp(appId)
+        if (!app) {
+          return { success: false, error: 'App not found' }
+        }
+
+        const workDir = r.manager.getAppWorkDir(appId)
+        return { success: true, data: { path: workDir } }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:get-data-path error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
+  // ── app:open-data-folder ────────────────────────────────────────────────
+  ipcMain.handle(
+    'app:open-data-folder',
+    async (_event, appId: string) => {
+      try {
+        const r = requireManager()
+        if (!r.success) return r
+
+        const app = r.manager.getApp(appId)
+        if (!app) {
+          return { success: false, error: 'App not found' }
+        }
+
+        const workDir = r.manager.getAppWorkDir(appId)
+        if (!existsSync(workDir)) {
+          return { success: false, error: 'App data directory does not exist on filesystem' }
+        }
+
+        shell.openPath(workDir)
+        console.log(`[AppIPC] app:open-data-folder: appId=${appId}, dir=${workDir}`)
+        return { success: true, data: { path: workDir } }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:open-data-folder error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
   // ── app:move-space ─────────────────────────────────────────────────────
   ipcMain.handle(
     'app:move-space',
@@ -740,5 +811,5 @@ export function registerAppHandlers(): void {
     }
   )
 
-  console.log('[AppIPC] App management handlers registered (25 channels)')
+  console.log('[AppIPC] App management handlers registered (27 channels)')
 }

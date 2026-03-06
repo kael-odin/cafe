@@ -6,7 +6,7 @@
  */
 
 import { ipcMain, BrowserWindow, Menu, shell, MenuItemConstructorOptions } from 'electron'
-import { browserViewManager, type BrowserViewBounds } from '../services/browser-view.service'
+import { browserViewManager, CHROME_USER_AGENT, type BrowserViewBounds } from '../services/browser-view.service'
 
 /**
  * Browser context menu options from renderer
@@ -16,6 +16,12 @@ interface BrowserMenuOptions {
   url?: string
   zoomLevel: number
 }
+
+/**
+ * Tracks open login windows by URL.
+ * Prevents duplicate windows and allows focusing an existing one.
+ */
+const loginWindows = new Map<string, BrowserWindow>()
 
 /**
  * Register all browser-related IPC handlers
@@ -406,6 +412,67 @@ export function registerBrowserHandlers(mainWindow: BrowserWindow | null) {
       menu.popup({ window: mainWindow || undefined })
 
       return { success: true }
+    }
+  )
+
+  /**
+   * Open a standalone login browser window.
+   * Uses the same session partition as BrowserView ('persist:browser')
+   * so cookies/auth state is shared with AI Browser automation.
+   *
+   * Production qualities:
+   *   - Deduplicates: focuses existing window if same URL already open
+   *   - No white flash: show:false + ready-to-show
+   *   - Non-blocking: fire-and-forget loadURL, IPC returns immediately
+   */
+  ipcMain.handle(
+    'browser:open-login-window',
+    (_event, { url, title }: { url: string; title?: string }) => {
+      try {
+        // Focus existing window for this URL instead of opening a duplicate
+        const existing = loginWindows.get(url)
+        if (existing && !existing.isDestroyed()) {
+          if (existing.isMinimized()) existing.restore()
+          existing.focus()
+          return { success: true }
+        }
+
+        const loginWindow = new BrowserWindow({
+          width: 1024,
+          height: 720,
+          title: title ?? 'Login',
+          autoHideMenuBar: true,
+          show: false, // Avoid white flash — reveal on ready-to-show
+          webPreferences: {
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+            partition: 'persist:browser',
+          },
+        })
+
+        loginWindow.webContents.setUserAgent(CHROME_USER_AGENT)
+
+        // Show window only when page is ready to render
+        loginWindow.once('ready-to-show', () => {
+          loginWindow.show()
+          loginWindow.focus()
+        })
+
+        // Register and clean up on close
+        loginWindows.set(url, loginWindow)
+        loginWindow.once('closed', () => loginWindows.delete(url))
+
+        // Fire-and-forget: don't block the IPC call waiting for page load
+        loginWindow.loadURL(url).catch((err: Error) => {
+          console.error('[Browser IPC] Login window load error:', err.message)
+        })
+
+        return { success: true }
+      } catch (error) {
+        console.error('[Browser IPC] Open login window failed:', error)
+        return { success: false, error: (error as Error).message }
+      }
     }
   )
 

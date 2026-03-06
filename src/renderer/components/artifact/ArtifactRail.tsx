@@ -4,7 +4,7 @@
  * Desktop (>=640px): Inline panel with drag-to-resize
  * Mobile (<640px): Floating button + Overlay panel
  *
- * Supports view mode toggle: Card (default) vs Tree (developer mode)
+ * Supports view mode toggle: Tree (default) vs Card
  * Supports external control for Canvas integration (smart collapse)
  */
 
@@ -47,9 +47,9 @@ interface ArtifactRailProps {
 
 // Load initial view mode from storage
 function getInitialViewMode(): ArtifactViewMode {
-  if (typeof window === 'undefined') return 'card'
+  if (typeof window === 'undefined') return 'tree'
   const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
-  return (stored === 'tree' || stored === 'card') ? stored : 'card'
+  return (stored === 'tree' || stored === 'card') ? stored : 'tree'
 }
 
 // Default browser home URL
@@ -404,7 +404,7 @@ export function ArtifactRail({
             title={t('Open folder (⌘⇧F)')}
           >
             <FolderOpen className="w-4 h-4 text-amber-500" />
-            <span>{t('Folder')}</span>
+            <span>{t('Open folder')}</span>
           </button>
           {/* Open browser button */}
           <button
@@ -413,7 +413,7 @@ export function ArtifactRail({
             title={t('Open browser (⌘⇧B)')}
           >
             <Globe className="w-4 h-4 text-blue-500" />
-            <span>{t('Browser')}</span>
+            <span>{t('Open browser')}</span>
           </button>
         </div>
       )}
@@ -563,11 +563,11 @@ export function ArtifactRail({
         </button>
       </div>
 
-      {/* Content */}
-      {isExpanded && renderContent()}
-
-      {/* Footer */}
-      {isExpanded && renderFooter()}
+      {/* Content + Footer — CSS-hidden when collapsed to preserve ArtifactTree folder expansion state */}
+      <div className={`flex-1 flex flex-col overflow-hidden${isExpanded ? '' : ' hidden'}`}>
+        {renderContent()}
+        {renderFooter()}
+      </div>
 
       {/* Collapsed state - show both folder and browser icons */}
       {!isExpanded && (

@@ -10,3 +10,4 @@ Run `npm run i18n` before commit by user.
 
 **rules.**
 - DO NOT use the Task tool or launch sub-agents unless the user explicitly requests it.
+- Any changes require human confirmation and consent.

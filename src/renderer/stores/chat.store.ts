@@ -186,6 +186,9 @@ interface ChatState {
   _pulseItems: PulseItem[]
   _pulseCount: number
 
+  // Session management
+  resetSession: (conversationId: string) => void
+
   // Cleanup
   reset: () => void
   resetSpace: (spaceId: string) => void
@@ -1096,6 +1099,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         })
         console.log(`[ChatStore] Conversation reloaded from backend [${conversationId}]`)
+      } else {
+        // Conversation not found in backend (e.g. virtual conversationIds like "app-chat:*")
+        // Still must clear generating state to unblock UI
+        set((state) => {
+          const newSessions = new Map(state.sessions)
+          const currentSession = newSessions.get(conversationId)
+          if (currentSession) {
+            newSessions.set(conversationId, {
+              ...currentSession,
+              isGenerating: false,
+              streamingContent: '',
+              compactInfo: null,
+              pendingQuestion: null,
+            })
+          }
+          return { sessions: newSessions }
+        })
+        console.log(`[ChatStore] No backend conversation for [${conversationId}], session state cleared`)
       }
     } catch (error) {
       console.error('[ChatStore] Failed to reload conversation:', error)
@@ -1351,6 +1372,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const delay = Math.max(0, earliest + PULSE_READ_GRACE_PERIOD_MS - now)
       _pulseCleanupTimer = setTimeout(() => get().cleanupPulseReadAt(), delay)
     }
+  },
+
+  // Reset a specific session to empty state (e.g., clear app chat, before new send)
+  resetSession: (conversationId: string) => {
+    set((state) => {
+      const newSessions = new Map(state.sessions)
+      newSessions.set(conversationId, createEmptySessionState())
+      return { sessions: newSessions }
+    })
   },
 
   // Reset all state (use sparingly - e.g., logout)

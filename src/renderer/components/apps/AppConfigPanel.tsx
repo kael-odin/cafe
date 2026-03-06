@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { Save, RotateCcw, Unplug, Loader2, FileCode, Settings, Code, AlertTriangle, Globe, Bell, Download } from 'lucide-react'
+import { Save, RotateCcw, Unplug, Loader2, FileCode, Settings, Code, AlertTriangle, Globe, Bell, Download, ExternalLink, FolderOpen, Wrench } from 'lucide-react'
 import { stringify as stringifyYaml, parse as parseYaml } from 'yaml'
 import { useAppsStore } from '../../stores/apps.store'
 import { useTranslation, getCurrentLanguage } from '../../i18n'
@@ -22,6 +22,7 @@ import type { InputDef, SubscriptionDef, AppSpec } from '../../../shared/apps/sp
 import type { InstalledApp } from '../../../shared/apps/app-types'
 import { resolvePermission } from '../../../shared/apps/app-types'
 import { resolveSpecI18n } from '../../utils/spec-i18n'
+import { api } from '../../api'
 import { AppModelSelector } from './AppModelSelector'
 import { appTypeLabel } from './appTypeUtils'
 
@@ -315,6 +316,17 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
   const [specSaveSuccess, setSpecSaveSuccess] = useState(false)
   const [specError, setSpecError] = useState<string | null>(null)
 
+  // ── Data path (for developer section) ──
+  const [dataPath, setDataPath] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.appGetDataPath(appId).then(res => {
+      if (res.success && res.data) {
+        setDataPath((res.data as { path: string }).path)
+      }
+    })
+  }, [appId])
+
   // ── User config form ──
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
   const [configSaving, setConfigSaving] = useState(false)
@@ -336,7 +348,9 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
     setConfigSaveSuccess(false)
   }, [])
 
-  const configSchema = resolveSpecI18n(app.spec, getCurrentLanguage()).config_schema ?? []
+  const resolvedSpec = resolveSpecI18n(app.spec, getCurrentLanguage())
+  const configSchema = resolvedSpec.config_schema ?? []
+  const browserLoginEntries = resolvedSpec.browser_login ?? []
   const subscriptions = specSubscriptions
   const hasConfig = configSchema.length > 0
   const hasFrequency = subscriptions.some(s => s.frequency || s.source.type === 'schedule')
@@ -406,77 +420,18 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
     await updateAppFrequency(appId, subscriptionId, frequency)
   }
 
+  async function handleOpenDataFolder() {
+    const res = await api.appOpenDataFolder(appId)
+    if (!res.success) {
+      console.error('[AppConfigPanel] appOpenDataFolder failed:', res.error)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* ── App Spec Fields ── */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('App Info')}
-        </h3>
-
-        {/* Name */}
-        <div className="space-y-1.5">
-          <label className="text-sm text-foreground">{t('Name')}</label>
-          <input
-            type="text"
-            value={specName}
-            onChange={e => { setSpecName(e.target.value); setSpecSaveSuccess(false); setSpecError(null) }}
-            className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-          />
-        </div>
-
-        {/* Description */}
-        <div className="space-y-1.5">
-          <label className="text-sm text-foreground">{t('Description')}</label>
-          <input
-            type="text"
-            value={specDescription}
-            onChange={e => { setSpecDescription(e.target.value); setSpecSaveSuccess(false); setSpecError(null) }}
-            className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-          />
-        </div>
-
-        {/* System Prompt */}
-        <div className="space-y-1.5">
-          <label className="text-sm text-foreground">{t('System Prompt')}</label>
-          <textarea
-            value={specSystemPrompt}
-            onChange={e => { setSpecSystemPrompt(e.target.value); setSpecSaveSuccess(false); setSpecError(null) }}
-            rows={6}
-            spellCheck={false}
-            className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
-          />
-        </div>
-
-        {/* Spec Save / Reset */}
-        {specError && (
-          <p className="text-xs text-red-400">{specError}</p>
-        )}
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            onClick={handleSpecSave}
-            disabled={!specHasChanges || specSaving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
-          >
-            {specSaving
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <Save className="w-3.5 h-3.5" />}
-            {t('Save')}
-          </button>
-          {specHasChanges && (
-            <button
-              onClick={handleSpecReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              {t('Reset')}
-            </button>
-          )}
-          {specSaveSuccess && (
-            <span className="text-xs text-green-500">{t('Saved')}</span>
-          )}
-        </div>
-      </div>
+      {/* ════════════════════════════════════════════
+          User Settings (top section)
+          ════════════════════════════════════════════ */}
 
       {/* ── Frequency Settings ── */}
       {hasFrequency && (
@@ -555,6 +510,33 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
             <AlertTriangle className="w-3 h-3 flex-shrink-0" />
             {t('This app may require AI Browser to work properly')}
           </p>
+        )}
+
+        {/* Browser login sites */}
+        {browserLoginEntries.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-sm text-foreground">{t('Required Logins')}</span>
+            <div className="space-y-1">
+              {browserLoginEntries.map(entry => (
+                <button
+                  key={entry.url}
+                  onClick={() => {
+                    api.openLoginWindow(entry.url, entry.label)
+                  }}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left rounded-lg bg-secondary/50 border border-border hover:bg-secondary transition-colors group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Globe className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                    <span className="text-sm text-foreground truncate">{entry.label}</span>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t('Click to open the website and log in via the Halo browser.')}
+            </p>
+          </div>
         )}
 
         {/* Notification level */}
@@ -642,33 +624,129 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
         </div>
       )}
 
-      {/* ── Spec Info (read-only summary) ── */}
-      <div className="space-y-2">
+      {/* ════════════════════════════════════════════
+          Developer Section (bottom, separated)
+          ════════════════════════════════════════════ */}
+      <div className="border-t border-border pt-6 space-y-6">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-          <FileCode className="w-3.5 h-3.5" />
-          {t('App Spec')}
+          <Wrench className="w-3.5 h-3.5" />
+          {t('Developer')}
         </h3>
-        <div className="bg-secondary rounded-lg p-3 text-xs font-mono space-y-1">
-          <div className="flex gap-2">
-            <span className="text-muted-foreground w-20 flex-shrink-0">{t('Type')}</span>
-            <span className="text-foreground">{t(appTypeLabel(app.spec.type))}</span>
+
+        {/* ── App Spec Fields (name, description, system_prompt) ── */}
+        <div className="space-y-4">
+          {/* Name */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-foreground">{t('Name')}</label>
+            <input
+              type="text"
+              value={specName}
+              onChange={e => { setSpecName(e.target.value); setSpecSaveSuccess(false); setSpecError(null) }}
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            />
           </div>
-          <div className="flex gap-2">
-            <span className="text-muted-foreground w-20 flex-shrink-0">{t('Version')}</span>
-            <span className="text-foreground">{app.spec.version}</span>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-foreground">{t('Description')}</label>
+            <input
+              type="text"
+              value={specDescription}
+              onChange={e => { setSpecDescription(e.target.value); setSpecSaveSuccess(false); setSpecError(null) }}
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            />
           </div>
-          <div className="flex gap-2">
-            <span className="text-muted-foreground w-20 flex-shrink-0">{t('Spec')}</span>
-            <span className="text-foreground">v{app.spec.spec_version}</span>
+
+          {/* System Prompt */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-foreground">{t('System Prompt')}</label>
+            <textarea
+              value={specSystemPrompt}
+              onChange={e => { setSpecSystemPrompt(e.target.value); setSpecSaveSuccess(false); setSpecError(null) }}
+              rows={6}
+              spellCheck={false}
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+            />
           </div>
-          {subscriptions.length > 0 && (
-            <div className="flex gap-2">
-              <span className="text-muted-foreground w-20 flex-shrink-0">{t('Triggers')}</span>
-              <span className="text-foreground">
-                {subscriptions.map(s => s.source.type).join(', ')}
-              </span>
-            </div>
+
+          {/* Spec Save / Reset */}
+          {specError && (
+            <p className="text-xs text-red-400">{specError}</p>
           )}
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={handleSpecSave}
+              disabled={!specHasChanges || specSaving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
+            >
+              {specSaving
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Save className="w-3.5 h-3.5" />}
+              {t('Save')}
+            </button>
+            {specHasChanges && (
+              <button
+                onClick={handleSpecReset}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {t('Reset')}
+              </button>
+            )}
+            {specSaveSuccess && (
+              <span className="text-xs text-green-500">{t('Saved')}</span>
+            )}
+          </div>
+        </div>
+
+        {/* ── Spec Info (read-only summary + data directory) ── */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+            <FileCode className="w-3.5 h-3.5" />
+            {t('App Spec')}
+          </h3>
+          <div className="bg-secondary rounded-lg p-3 text-xs font-mono space-y-1">
+            <div className="flex gap-2">
+              <span className="text-muted-foreground w-20 flex-shrink-0">{t('Type')}</span>
+              <span className="text-foreground">{t(appTypeLabel(app.spec.type))}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-muted-foreground w-20 flex-shrink-0">{t('Version')}</span>
+              <span className="text-foreground">{app.spec.version}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-muted-foreground w-20 flex-shrink-0">{t('Spec')}</span>
+              <span className="text-foreground">v{app.spec.spec_version}</span>
+            </div>
+            {subscriptions.length > 0 && (
+              <div className="flex gap-2">
+                <span className="text-muted-foreground w-20 flex-shrink-0">{t('Triggers')}</span>
+                <span className="text-foreground">
+                  {subscriptions.map(s => s.source.type).join(', ')}
+                </span>
+              </div>
+            )}
+            <div className="flex gap-2 items-start">
+              <span className="text-muted-foreground w-20 flex-shrink-0 pt-px">{t('Data')}</span>
+              <div className="min-w-0 flex-1">
+                {dataPath && (
+                  <p className="text-foreground/60 truncate text-[11px] leading-relaxed select-all" title={dataPath}>
+                    {dataPath}
+                  </p>
+                )}
+                <button
+                  onClick={handleOpenDataFolder}
+                  className="text-foreground hover:text-primary transition-colors flex items-center gap-1 group mt-0.5"
+                  title={t('Reveal in Finder')}
+                >
+                  <FolderOpen className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="underline decoration-dotted underline-offset-2">
+                    {t('Reveal in Finder')}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

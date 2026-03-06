@@ -264,6 +264,20 @@ export interface I18nLocaleBlock {
    * Only fields that need translation need to be listed.
    */
   config_schema?: Record<string, I18nConfigFieldOverride>
+  /**
+   * Per-URL label overrides for browser_login entries, keyed by URL.
+   * Example: { "https://www.xiaohongshu.com": { label: "小红书" } }
+   */
+  browser_login?: Record<string, { label?: string }>
+}
+
+// ============================================
+// Browser Login Entries
+// ============================================
+
+export interface BrowserLoginEntry {
+  url: string
+  label: string
 }
 
 // ============================================
@@ -296,6 +310,8 @@ export interface AutomationSpec extends AppSpecCommon {
   output?: OutputConfig
   escalation?: EscalationConfig
   recommended_model?: string
+  /** Websites the user needs to log into before the automation can run */
+  browser_login?: BrowserLoginEntry[]
 }
 
 /** MCP Server — external community format */

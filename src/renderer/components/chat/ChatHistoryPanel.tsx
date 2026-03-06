@@ -116,14 +116,6 @@ export function ChatHistoryPanel() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isExpanded, editingId])
 
-  // Focus input when entering edit mode
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus()
-      editInputRef.current.select()
-    }
-  }, [editingId])
-
   // Close dropdown menu on outside click
   useEffect(() => {
     if (!menuOpenId) return
@@ -221,7 +213,10 @@ export function ChatHistoryPanel() {
           {editingId === conv.id ? (
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <input
-                ref={editInputRef}
+                ref={(el) => {
+                  editInputRef.current = el
+                  if (el) { el.focus(); el.select() }
+                }}
                 type="text"
                 value={editingTitle}
                 onChange={(e) => setEditingTitle(e.target.value)}

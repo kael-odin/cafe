@@ -18,6 +18,7 @@ import { useAppsPageStore } from '../stores/apps-page.store'
 import { Header } from '../components/layout/Header'
 import { AppList } from '../components/apps/AppList'
 import { AutomationHeader } from '../components/apps/AutomationHeader'
+import { LoginNoticeBar } from '../components/apps/LoginNoticeBar'
 import { ActivityThread } from '../components/apps/ActivityThread'
 import { SessionDetailView } from '../components/apps/SessionDetailView'
 import { AppChatView } from '../components/apps/AppChatView'
@@ -32,6 +33,7 @@ import { UninstalledDetailView } from '../components/apps/UninstalledDetailView'
 import { StoreView } from '../components/store/StoreView'
 import { useTranslation, getCurrentLanguage } from '../i18n'
 import { resolveSpecI18n } from '../utils/spec-i18n'
+import { api } from '../api'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
 
 export function AppsPage() {
@@ -40,7 +42,7 @@ export function AppsPage() {
   const currentSpace = useSpaceStore(state => state.currentSpace)
   const haloSpace = useSpaceStore(state => state.haloSpace)
   const spaces = useSpaceStore(state => state.spaces)
-  const { apps, loadApps } = useAppsStore()
+  const { apps, loadApps, updateAppOverrides } = useAppsStore()
   const {
     currentTab,
     setCurrentTab,
@@ -128,11 +130,20 @@ export function AppsPage() {
     [apps, selectedAppId]
   )
 
-  // Locale-resolved display name for breadcrumbs
-  const selectedAppName = useMemo(
-    () => selectedApp ? resolveSpecI18n(selectedApp.spec, getCurrentLanguage()).name : undefined,
+  // Locale-resolved display fields for breadcrumbs and login notice
+  const resolvedSpec = useMemo(
+    () => selectedApp ? resolveSpecI18n(selectedApp.spec, getCurrentLanguage()) : undefined,
     [selectedApp]
   )
+  const selectedAppName = resolvedSpec?.name
+
+  // Login notice bar: show when browser_login exists and not dismissed
+  const showLoginNotice = useMemo(() => {
+    if (!selectedApp || selectedApp.spec.type !== 'automation') return false
+    const browserLogin = resolvedSpec?.browser_login
+    if (!browserLogin || browserLogin.length === 0) return false
+    return !selectedApp.userOverrides?.loginNoticeDismissed
+  }, [selectedApp, resolvedSpec])
 
   const isSessionDetail = detailView?.type === 'session-detail'
   const isAppChat = detailView?.type === 'app-chat'
@@ -276,7 +287,7 @@ export function AppsPage() {
 
           {/* Right: Detail panel */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Session detail breadcrumb — replaces AutomationHeader when drilling down */}
+            {/* Session detail breadcrumb — replaces AutomationHeader when drilling into a specific run */}
             {isSessionDetail && selectedApp && (
               <SessionBreadcrumb
                 appName={selectedAppName ?? ''}
@@ -285,27 +296,24 @@ export function AppsPage() {
               />
             )}
 
-            {/* App chat breadcrumb */}
-            {isAppChat && selectedApp && (
-              <SessionBreadcrumb
-                appName={selectedAppName ?? ''}
-                label={t('Chat')}
-                onBack={() => openActivityThread(selectedApp.id)}
-              />
-            )}
-
-            {/* App config breadcrumb */}
-            {isAppConfig && selectedApp && (
-              <SessionBreadcrumb
-                appName={selectedAppName ?? ''}
-                label={t('Settings')}
-                onBack={() => openActivityThread(selectedApp.id)}
-              />
-            )}
-
-            {/* App header bar — for automation apps (activity thread only) */}
-            {!isSessionDetail && !isAppChat && !isAppConfig && !isUninstalledDetail && selectedAppId && detailView?.type === 'activity-thread' && (
-              <AutomationHeader appId={selectedAppId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
+            {/* Automation persona card + tab bar — shown for all automation views except session detail drill-down */}
+            {!isSessionDetail && !isUninstalledDetail && selectedAppId && selectedApp?.spec.type === 'automation' && (
+              <>
+                <AutomationHeader appId={selectedAppId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
+                {showLoginNotice && resolvedSpec?.browser_login && detailView?.type === 'activity-thread' && (
+                  <LoginNoticeBar
+                    browserLogin={resolvedSpec.browser_login}
+                    onDismiss={() => {
+                      if (selectedAppId) {
+                        updateAppOverrides(selectedAppId, { loginNoticeDismissed: true })
+                      }
+                    }}
+                    onOpenBrowser={(url, label) => {
+                      api.openLoginWindow(url, label)
+                    }}
+                  />
+                )}
+              </>
             )}
 
             {/* Detail content — app-chat manages its own scroll + flex layout */}

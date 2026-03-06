@@ -86,6 +86,7 @@ export {
   getAppChatSessionState,
   getAppChatConversationId,
   cleanupAppChatBrowserContext,
+  clearAppChat,
 } from './app-chat'
 export type { AppChatRequest } from './app-chat'
 

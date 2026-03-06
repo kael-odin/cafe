@@ -66,7 +66,11 @@ function getActionSummaryData(thoughts: Thought[]): { key: string; params?: Reco
         case 'WebFetch': return { key: 'Fetching {{url}}...', params: { url: extractUrl(input?.url) } }
         case 'WebSearch': return { key: 'Searching {{query}}...', params: { query: extractSearchTerm(input?.query) } }
         case 'TodoWrite': return { key: 'Updating tasks...' }
-        case 'Task': return { key: 'Executing {{task}}...', params: { task: extractSearchTerm(input?.description) } }
+        case 'Task':
+          if (input?.subagent_type === 'web-searcher') {
+            return { key: 'Searching {{query}}...', params: { query: extractSearchTerm(input?.prompt) } }
+          }
+          return { key: 'Executing {{task}}...', params: { task: extractSearchTerm(input?.description) } }
         case 'NotebookEdit': return { key: 'Editing {{file}}...', params: { file: extractFileName(input?.notebook_path) } }
         case 'AskUserQuestion': return { key: 'Waiting for user response...' }
         default: return { key: 'Processing...' }

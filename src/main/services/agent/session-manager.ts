@@ -34,6 +34,7 @@ import { emitAgentEvent } from './events'
 import { registerProcess, unregisterProcess, getCurrentInstanceId } from '../health'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
 import { createHaloAppsMcpServer } from '../../apps/conversation-mcp'
+import { createWebSearchMcpServer } from '../web-search'
 
 // ============================================
 // Session Maps
@@ -535,6 +536,7 @@ export async function ensureSessionWarm(
   // Build MCP servers config (must match sendMessage to avoid session rebuild)
   const mcpServers: Record<string, any> = dbMcpServers ? { ...dbMcpServers } : {}
   mcpServers['halo-apps'] = createHaloAppsMcpServer(spaceId)
+  mcpServers['web-search'] = createWebSearchMcpServer()
 
   // Build SDK options using shared configuration
   const sdkOptions = buildBaseSdkOptions({

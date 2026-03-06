@@ -188,6 +188,9 @@ export function getToolFriendlyFormat(
       return typeof toolInput.query === 'string' ? `Search: ${toolInput.query}` : ''
 
     case 'Task':
+      if (toolInput.subagent_type === 'web-searcher') {
+        return typeof toolInput.prompt === 'string' ? `Search: ${toolInput.prompt}` : 'Web search'
+      }
       return typeof toolInput.description === 'string' ? toolInput.description : ''
 
     case 'NotebookEdit':

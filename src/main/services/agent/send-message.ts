@@ -17,6 +17,7 @@ import {
   AI_BROWSER_SYSTEM_PROMPT,
   createAIBrowserMcpServer
 } from '../ai-browser'
+import { createWebSearchMcpServer } from '../web-search'
 import { createHaloAppsMcpServer } from '../../apps/conversation-mcp'
 import type {
   AgentRequest,
@@ -136,6 +137,11 @@ export async function sendMessage(
     // Always add halo-apps MCP for automation control
     mcpServers['halo-apps'] = createHaloAppsMcpServer(spaceId)
     console.log(`[Agent][${conversationId}] Halo Apps MCP server added`)
+
+    // Always add web-search MCP for web searching (replaces Claude's WebSearch)
+    mcpServers['web-search'] = createWebSearchMcpServer()
+    console.log(`[Agent][${conversationId}] Web Search MCP server added`)
+
     console.log(`[mcpServers]${Object.keys(mcpServers)}`)
     // Build base SDK options using shared configuration
     const sdkOptions = buildBaseSdkOptions({
@@ -153,7 +159,7 @@ export async function sendMessage(
       maxTurns: config.agent?.maxTurns
     })
 
-    // Apply dynamic configurations (AI Browser system prompt, Thinking mode)
+    // Apply dynamic configurations (AI Browser, Thinking mode)
     // These are specific to sendMessage and not part of base options
     if (aiBrowserEnabled) {
       sdkOptions.systemPrompt = buildSystemPromptWithAIBrowser(

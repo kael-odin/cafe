@@ -19,7 +19,7 @@
  * - Bottom toolbar for future extensibility
  */
 
-import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
+import { useState, useRef, useEffect, useMemo, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
 import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe } from 'lucide-react'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
@@ -59,7 +59,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessingImages, setIsProcessingImages] = useState(false)
   const [imageError, setImageError] = useState<ImageError | null>(null)
-  const [thinkingEnabled, setThinkingEnabled] = useState(false)  // Extended thinking mode
+  const [thinkingEnabled, setThinkingEnabled] = useState(true)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
   // Slash-command autocomplete
   const [slashMenuOpen, setSlashMenuOpen] = useState(false)
@@ -245,8 +245,23 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   }, [isGenerating, isOnboardingSendStep])
 
   // Slash-command helpers
-  // `slashFilter` is the text typed after "/" — used for filtering the menu
+
+  // Upper bound on filter length: the longest command label (e.g. "compact" = 7).
+  // Computed once per commands list change — used to short-circuit onChange cheaply.
+  const maxCommandLen = useMemo(
+    () => slashCommands.reduce((max, c) => Math.max(max, c.label.length), 0),
+    [slashCommands]
+  )
+
+  // `slashFilter` is the text typed after "/" — drives filtering and menu visibility.
   const slashFilter = slashMenuOpen && content.startsWith('/') ? content.slice(1) : ''
+
+  // Pre-filtered, pre-sorted list — single source of truth for rendering and keyboard nav.
+  // Only computed when the menu is open; returns [] otherwise (zero cost when closed).
+  const filteredSlashCommands = useMemo(
+    () => (slashMenuOpen ? filterSlashCommands(slashCommands, slashFilter) : []),
+    [slashCommands, slashFilter, slashMenuOpen]
+  )
 
   const handleSlashClose = () => {
     setSlashMenuOpen(false)
@@ -303,32 +318,31 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     if (e.nativeEvent.isComposing) return
 
     // ── Slash-command menu navigation ─────────────────────────────────────────
-    if (slashMenuOpen && slashCommands.length > 0) {
-      const filteredLen = filterSlashCommands(slashCommands, slashFilter).length
+    // filteredSlashCommands is already computed by useMemo — no extra filtering here.
+    if (slashMenuOpen && filteredSlashCommands.length > 0) {
+      const filteredLen = filteredSlashCommands.length
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSlashSelectedIndex((i) => (filteredLen === 0 ? 0 : (i + 1) % filteredLen))
+        setSlashSelectedIndex((i) => (i + 1) % filteredLen)
         return
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSlashSelectedIndex((i) => (filteredLen === 0 ? 0 : (i - 1 + filteredLen) % filteredLen))
+        setSlashSelectedIndex((i) => (i - 1 + filteredLen) % filteredLen)
         return
       }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        const filtered = filterSlashCommands(slashCommands, slashFilter)
-        if (filtered[slashSelectedIndex]) {
-          handleSlashSelect(filtered[slashSelectedIndex])
+        if (filteredSlashCommands[slashSelectedIndex]) {
+          handleSlashSelect(filteredSlashCommands[slashSelectedIndex])
         }
         return
       }
       if (e.key === 'Tab') {
         e.preventDefault()
-        const filtered = filterSlashCommands(slashCommands, slashFilter)
-        if (filtered[slashSelectedIndex]) {
-          handleSlashSelect(filtered[slashSelectedIndex])
+        if (filteredSlashCommands[slashSelectedIndex]) {
+          handleSlashSelect(filteredSlashCommands[slashSelectedIndex])
         }
         return
       }
@@ -399,11 +413,11 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {/* Slash-command autocomplete menu — floats above the input box */}
-          {slashMenuOpen && slashCommands.length > 0 && (
+          {/* Slash-command autocomplete menu — floats above the input box.
+              Only rendered when there are actual matches; no empty-state UI. */}
+          {slashMenuOpen && filteredSlashCommands.length > 0 && (
             <SlashCommandMenu
-              items={slashCommands}
-              filter={slashFilter}
+              items={filteredSlashCommands}
               selectedIndex={slashSelectedIndex}
               onSelect={handleSlashSelect}
               onClose={handleSlashClose}
@@ -446,8 +460,19 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
                 if (isOnboardingSendStep) return
                 const val = e.target.value
                 setContent(val)
-                // Open slash menu when input starts with "/" and has no space yet
-                if (slashCommands.length > 0 && val.startsWith('/') && !val.includes(' ')) {
+                // Open slash-command menu only when the input is a plausible command prefix.
+                // Short-circuits before any filter computation via maxCommandLen:
+                //   • starts with "/"
+                //   • no spaces or newlines (file paths, multi-line text are not commands)
+                //   • at most as long as the longest known command
+                const afterSlash = val.slice(1)
+                const looksLikeCommand =
+                  slashCommands.length > 0 &&
+                  val.startsWith('/') &&
+                  !afterSlash.includes(' ') &&
+                  !afterSlash.includes('\n') &&
+                  afterSlash.length <= maxCommandLen
+                if (looksLikeCommand) {
                   setSlashMenuOpen(true)
                   setSlashSelectedIndex(0)
                 } else {
@@ -605,7 +630,7 @@ function InputToolbar({
             title={aiBrowserEnabled ? t('AI Browser enabled (click to disable)') : t('Enable AI Browser')}
           >
             <Globe size={15} />
-            <span className="text-xs">{t('Browser')}</span>
+            <span className="text-xs">{t('Web Control')}</span>
             {/* Active indicator dot */}
             {aiBrowserEnabled && (
               <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full" />

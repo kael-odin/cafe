@@ -18,7 +18,7 @@ import {
 } from '../components/icons/ToolIcons'
 import { Header } from '../components/layout/Header'
 import { SpaceGuide } from '../components/space/SpaceGuide'
-import { Monitor, Blocks, ArrowRight, AlertCircle } from 'lucide-react'
+import { Monitor, Blocks, ArrowRight, AlertCircle, SendHorizontal } from 'lucide-react'
 import { api } from '../api'
 import { useTranslation } from '../i18n'
 import { useAppsStore } from '../stores/apps.store'
@@ -236,19 +236,19 @@ export function HomePage() {
             <div
               data-onboarding="halo-space"
               onClick={() => handleSpaceClick(haloSpace)}
-              className="halo-space-card p-5 rounded-xl cursor-pointer flex flex-col gap-3 min-h-[120px]"
+              className="halo-space-card p-5 rounded-xl cursor-pointer flex flex-col justify-between min-h-[160px]"
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
                 <h2 className="text-sm font-semibold">{t('Halo')}</h2>
               </div>
-              <p className="text-xs text-muted-foreground flex-1">
-                {t('Aimless time, ideas will crystallize here')}
-              </p>
-              <div className="flex justify-end">
-                <span className="text-xs text-primary flex items-center gap-1">
-                  {t('Enter')} <ArrowRight className="w-3 h-3" />
+              <div className="flex flex-col gap-2 px-3 pt-3 pb-2 rounded-xl bg-background/60 border border-primary/20 min-h-[72px]">
+                <span className="text-xs text-muted-foreground flex-1">
+                  {t('Ask me anything...')}
                 </span>
+                <div className="flex justify-end">
+                  <SendHorizontal className="w-4 h-4 text-primary/50" />
+                </div>
               </div>
             </div>
           )}
@@ -256,7 +256,7 @@ export function HomePage() {
           {/* Apps card */}
           <div
             onClick={() => setView('apps')}
-            className="p-5 rounded-xl cursor-pointer border border-border hover:border-primary/40 hover:bg-secondary/50 transition-colors flex flex-col gap-3 min-h-[120px]"
+            className="p-5 rounded-xl cursor-pointer border border-border hover:border-primary/40 hover:bg-secondary/50 transition-colors flex flex-col gap-3 min-h-[160px]"
           >
             <div className="flex items-center gap-2">
               <Blocks className="w-5 h-5 text-muted-foreground" />

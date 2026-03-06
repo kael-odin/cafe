@@ -81,6 +81,8 @@ export interface InstalledApp {
     modelSourceId?: string
     /** Override model within the selected AI source. Used together with modelSourceId. */
     modelId?: string
+    /** When true, the login notice bar is permanently dismissed for this app */
+    loginNoticeDismissed?: boolean
   }
 
   /** Permission grants and denials */

@@ -301,6 +301,7 @@ export interface HaloAPI {
     message: string
     error?: string
   }) => void) => Promise<{ success: boolean; path?: string; error?: string }>
+  openLoginWindow: (url: string, title?: string) => Promise<IpcResponse>
   openExternal: (url: string) => Promise<void>
 
   // Bootstrap lifecycle
@@ -348,14 +349,17 @@ export interface HaloAPI {
   appExportSpec: (appId: string) => Promise<IpcResponse<{ yaml: string; filename: string }>>
   appImportSpec: (input: { spaceId: string; yamlContent: string; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
   appOpenSkillFolder: (appId: string) => Promise<IpcResponse>
+  appGetDataPath: (appId: string) => Promise<IpcResponse<{ path: string }>>
+  appOpenDataFolder: (appId: string) => Promise<IpcResponse>
   appMoveSpace: (input: { appId: string; newSpaceId: string | null }) => Promise<IpcResponse>
 
   // App Chat
-  appChatSend: (request: { appId: string; spaceId: string; message: string; thinkingEnabled?: boolean }) => Promise<IpcResponse>
+  appChatSend: (request: { appId: string; spaceId: string; message: string; images?: Array<{ type: string; media_type: string; data: string }>; thinkingEnabled?: boolean }) => Promise<IpcResponse>
   appChatStop: (appId: string) => Promise<IpcResponse>
   appChatStatus: (appId: string) => Promise<IpcResponse>
   appChatMessages: (input: { appId: string; spaceId: string }) => Promise<IpcResponse>
   appChatSessionState: (appId: string) => Promise<IpcResponse>
+  appChatClear: (input: { appId: string; spaceId: string }) => Promise<IpcResponse>
 
   // App Event Listeners
   onAppStatusChanged: (callback: (data: unknown) => void) => () => void
@@ -610,6 +614,7 @@ const api: HaloAPI = {
       ipcRenderer.removeListener(progressChannel, progressHandler)
     }
   },
+  openLoginWindow: (url, title) => ipcRenderer.invoke('browser:open-login-window', { url, title }),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
 
   // Bootstrap lifecycle
@@ -654,6 +659,8 @@ const api: HaloAPI = {
   appExportSpec: (appId) => ipcRenderer.invoke('app:export-spec', appId),
   appImportSpec: (input) => ipcRenderer.invoke('app:import-spec', input),
   appOpenSkillFolder: (appId) => ipcRenderer.invoke('app:open-skill-folder', appId),
+  appGetDataPath: (appId) => ipcRenderer.invoke('app:get-data-path', appId),
+  appOpenDataFolder: (appId) => ipcRenderer.invoke('app:open-data-folder', appId),
   appMoveSpace: (input) => ipcRenderer.invoke('app:move-space', input),
 
   // App Chat
@@ -662,6 +669,7 @@ const api: HaloAPI = {
   appChatStatus: (appId) => ipcRenderer.invoke('app:chat-status', appId),
   appChatMessages: (input) => ipcRenderer.invoke('app:chat-messages', input),
   appChatSessionState: (appId) => ipcRenderer.invoke('app:chat-session-state', appId),
+  appChatClear: (input) => ipcRenderer.invoke('app:chat-clear', input),
 
   // App Event Listeners
   onAppStatusChanged: (callback) => createEventListener('app:status_changed', callback),

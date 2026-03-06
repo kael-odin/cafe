@@ -12,7 +12,7 @@
  * and all runtime behavior are never affected by i18n.
  */
 
-import type { AppSpec, I18nLocaleBlock, InputDef } from '../../shared/apps/spec-types'
+import type { AppSpec, I18nLocaleBlock, InputDef, BrowserLoginEntry } from '../../shared/apps/spec-types'
 import type { RegistryEntry } from '../../shared/store/store-types'
 
 // ============================================
@@ -57,6 +57,8 @@ export interface ResolvedSpecDisplay {
   description: string
   /** Locale-resolved copy of config_schema, or undefined if the spec has none. */
   config_schema: InputDef[] | undefined
+  /** Locale-resolved browser_login entries, or undefined if the spec has none. */
+  browser_login: BrowserLoginEntry[] | undefined
 }
 
 /**
@@ -72,12 +74,16 @@ export interface ResolvedSpecDisplay {
 export function resolveSpecI18n(spec: AppSpec, locale: string): ResolvedSpecDisplay {
   const block = findLocaleBlock(spec.i18n, locale)
 
+  // Extract browser_login from automation specs
+  const specBrowserLogin = spec.type === 'automation' ? spec.browser_login : undefined
+
   // No block for this locale — return canonical fields as-is (no copy overhead)
   if (!block) {
     return {
       name: spec.name,
       description: spec.description,
       config_schema: spec.config_schema,
+      browser_login: specBrowserLogin,
     }
   }
 
@@ -99,10 +105,21 @@ export function resolveSpecI18n(spec: AppSpec, locale: string): ResolvedSpecDisp
     }
   })
 
+  // Apply browser_login label overrides (keyed by URL)
+  const browser_login = specBrowserLogin?.map((entry): BrowserLoginEntry => {
+    const override = block.browser_login?.[entry.url]
+    if (!override) return entry
+    return {
+      ...entry,
+      label: override.label ?? entry.label,
+    }
+  })
+
   return {
     name: block.name ?? spec.name,
     description: block.description ?? spec.description,
     config_schema,
+    browser_login,
   }
 }
 
