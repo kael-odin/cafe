@@ -103,6 +103,14 @@ export interface AppearanceConfig {
   theme: ThemeMode;
 }
 
+// Send key mode: 'enter' = Enter to send, 'ctrl-enter' = Ctrl+Enter to send
+export type SendKeyMode = 'enter' | 'ctrl-enter';
+
+// Chat behavior configuration
+export interface ChatConfig {
+  sendKeyMode?: SendKeyMode;
+}
+
 // System configuration for auto-launch behavior
 export interface SystemConfig {
   autoLaunch: boolean;      // Launch on system startup
@@ -195,6 +203,7 @@ export interface HaloConfig {
   notificationChannels?: NotificationChannelsConfig;  // External notification channels
   agent?: AgentConfig;  // Agent behavior settings
   layout?: LayoutConfig;  // Global layout preferences (panel sizes and visibility)
+  chat?: ChatConfig;  // Chat behavior preferences
   isFirstLaunch: boolean;
 }
 

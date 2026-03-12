@@ -14,9 +14,10 @@
 
 import { unstable_v2_createSession } from '@anthropic-ai/claude-agent-sdk'
 import { app } from 'electron'
+import path from 'path'
 import { ensureOpenAICompatRouter, encodeBackendConfig, normalizeApiUrl } from '../openai-compat-router'
 import type { BackendConfig } from '../openai-compat-router'
-import { getCleanUserEnv } from './agent/sdk-config'
+import { buildSdkEnv } from './agent/sdk-config'
 import { AVAILABLE_MODELS } from '../../shared/types/ai-sources'
 import { getHeadlessElectronPath } from './agent/helpers'
 
@@ -150,11 +151,21 @@ export async function validateApiConnection(params: ValidateApiParams): Promise<
   }
 
   // Step 3: Determine test model
-  // For OpenAI compat: use a simple model, SDK will pass through router
-  // For Anthropic: use actual model from config or default
-  const testModel = model || (provider === 'anthropic' ? AVAILABLE_MODELS[2].id : 'claude-sonnet-4-20250514')
+  // For OpenAI compat: MUST use the user-configured model, because each provider has its own
+  // model namespace (e.g. Gemini uses 'gemini-2.5-pro', not Claude model names).
+  // Do NOT fall back to a Claude model name for OpenAI-compat providers — providers like Gemini
+  // will reject unknown model IDs such as 'claude-sonnet-4-20250514' with a 404/400 error.
+  // For Anthropic: use model from config or the default Claude Sonnet.
+  if (provider === 'openai' && !model) {
+    return {
+      valid: false,
+      normalizedUrl,
+      message: 'Please select a model before testing the connection'
+    }
+  }
+  const testModel = model || AVAILABLE_MODELS[2].id
 
-  // Step 4: Get headless Electron path (same as agent module)
+  // Step 4: Get headless Electron path (same as agent module, used for executable fallback)
   const electronPath = getHeadlessElectronPath()
 
   // Step 5: Create temporary SDK session with same pattern as session-manager.ts
@@ -170,24 +181,26 @@ export async function validateApiConnection(params: ValidateApiParams): Promise<
       model: testModel,
       cwd: app.getPath('temp'),
       abortController,
-      env: {
-        ...getCleanUserEnv(),
-        ELECTRON_RUN_AS_NODE: 1,
-        ELECTRON_NO_ATTACH_CONSOLE: 1,
-        ANTHROPIC_API_KEY: anthropicApiKey,
-        ANTHROPIC_BASE_URL: anthropicBaseUrl,
-        NO_PROXY: 'localhost,127.0.0.1',
-        no_proxy: 'localhost,127.0.0.1',
-        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
-        DISABLE_TELEMETRY: '1',
-        DISABLE_COST_WARNINGS: '1'
-      },
+      // Use buildSdkEnv for consistent environment setup matching the agent module.
+      // This includes CLAUDE_CONFIG_DIR, proxy normalization, and all required flags.
+      env: buildSdkEnv({
+        anthropicApiKey,
+        anthropicBaseUrl
+      }),
       systemPrompt: 'Reply with exactly: OK',
       maxTurns: 1,
       allowedTools: [],
-      permissionMode: 'default' as const,
+      permissionMode: 'bypassPermissions' as const,
+      // Use the same cli.js path as the agent module (sdk-config.ts buildBaseSdkOptions)
+      // This avoids spawning a full Electron subprocess for headless node usage,
+      // which can fail on Windows when the executable path contains spaces or
+      // when the Electron binary is not recognized as a Node.js runtime.
+      pathToClaudeCodeExecutable: path.join(app.getAppPath(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
       executable: electronPath,
-      executableArgs: ['--no-warnings']
+      executableArgs: ['--no-warnings'],
+      extraArgs: {
+        'dangerously-skip-permissions': null
+      }
     }
 
     console.log('[API Validator] Creating SDK session for validation...')
