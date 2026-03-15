@@ -1,5 +1,5 @@
-/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
- * Halo - React Entry Point
+/**
+ * Cafe - React Entry Point
  */
 
 // ========================================
@@ -9,7 +9,7 @@
 // In remote browser mode, native console is used since there's no IPC transport.
 // Uses the same detection pattern as src/renderer/api/transport.ts:isElectron()
 // Non-blocking: don't use top-level await to avoid blocking module graph in Vite dev mode
-if (typeof window !== 'undefined' && 'halo' in window) {
+if (typeof window !== 'undefined' && 'cafe' in window) {
   import('electron-log/renderer.js').then(({ default: log }) => {
     Object.assign(console, log.functions)
   })

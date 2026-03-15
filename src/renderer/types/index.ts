@@ -1,5 +1,5 @@
-// ============================================		      	    				  	  	  	 		 		       	 	 	         	 	    					 
-// Halo Type Definitions
+// ============================================
+// Cafe Type Definitions
 // ============================================
 
 // Import values needed in this file's scope
@@ -191,7 +191,7 @@ export interface LayoutConfig {
   artifactRailWidth?: number;     // Artifact rail panel width (px)
 }
 
-export interface HaloConfig {
+export interface CafeConfig {
   api: ApiConfig;  // Legacy, kept for backward compatibility
   aiSources: AISourcesConfig;  // v2 format: { version: 2, currentId, sources: [] }
   permissions: PermissionConfig;
@@ -206,6 +206,9 @@ export interface HaloConfig {
   chat?: ChatConfig;  // Chat behavior preferences
   isFirstLaunch: boolean;
 }
+
+// Legacy alias for backward compatibility
+export type HaloConfig = CafeConfig
 
 // ============================================
 // Space Types

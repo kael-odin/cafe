@@ -1,11 +1,11 @@
 {
   "$schema": "./product.schema.json",
-  "name": "Halo",
-  "version": "1.0.0",
+  "name": "Cafe",
+  "version": "2.0.8",
   "updateConfig": {
     "provider": "github",
-    "owner": "openkursar",
-    "repo": "hello-halo"
+    "owner": "kael-odin",
+    "repo": "cafe"
   },
   "authProviders": [
     {
@@ -36,7 +36,7 @@
       },
       "icon": "key",
       "iconBgColor": "#da7756",
-      "recommended": false,
+      "recommended": true,
       "builtin": true,
       "enabled": true
     }

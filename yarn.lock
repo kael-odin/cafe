@@ -2765,7 +2765,7 @@ electron-vite@^2.0.0:
 
 electron@>=13.0.0, electron@~29.4.6:
   version "29.4.6"
-  resolved "https://registry.npmmirror.com/electron/-/electron-29.4.6.tgz"
+  resolved "https://registry.npmjs.org/electron/-/electron-29.4.6.tgz"
   integrity sha512-fz8ndj8cmmf441t4Yh2FDP3Rn0JhLkVGvtUf2YVMbJ5SdJPlc0JWll9jYkhh60jDKVVCr/tBAmfxqRnXMWJpzg==
   dependencies:
     "@electron/get" "^2.0.0"

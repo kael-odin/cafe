@@ -1,0 +1,91 @@
+{
+  "$schema": "./product.schema.json",
+  "name": "Cafe",
+  "version": "2.0.8",
+  "updateConfig": {
+    "provider": "github",
+    "owner": "kael-odin",
+    "repo": "cafe"
+  },
+  "authProviders": [
+    {
+      "type": "tencent",
+      "displayName": {
+        "en": "Tencent",
+        "zh-CN": "腾讯"
+      },
+      "description": {
+        "en": "GLM 5.0, Kimi 2.5 free quota, WeChat Scan to Log In",
+        "zh-CN": "glm 5.0, kimi2.5 免费额度, 微信扫码登录"
+      },
+      "icon": "log-in",
+      "iconBgColor": "#3b82f6",
+      "path": "./halo-local/dist/providers/tencent/index.js",
+      "enabled": true
+    },
+    {
+      "type": "qwen",
+      "displayName": {
+        "en": "Qwen",
+        "zh-CN": "通义千问"
+      },
+      "description": {
+        "en": "one-click login，free access to powerful Qwen 3.5 Plus",
+        "zh-CN": "一键登录，免费获取最强 Qwen 3.5 Plus"
+      },
+      "icon": "log-in",
+      "iconBgColor": "#6d28d9",
+      "recommended": true,
+      "path": "./halo-local/dist/providers/qwen/index.js",
+      "enabled": true
+    },
+    {
+      "type": "kiro",
+      "displayName": {
+        "en": "Kiro",
+        "zh-CN": "Kiro"
+      },
+      "description": {
+        "en": "Claude Sonnet 4.5, Haiku 4.5, free with Google/GitHub login",
+        "zh-CN": "Claude Sonnet 4.5, Haiku 4.5, Google/GitHub 登录免费使用"
+      },
+      "icon": "log-in",
+      "iconBgColor": "#232f3e",
+      "recommended": false,
+      "path": "./halo-local/dist/providers/kiro/index.js",
+      "enabled": true
+    },
+    {
+      "type": "github-copilot",
+      "displayName": {
+        "en": "GitHub Copilot",
+        "zh-CN": "GitHub Copilot"
+      },
+      "description": {
+        "en": "Login with GitHub, use Copilot models",
+        "zh-CN": "GitHub 登录，使用 Copilot 模型"
+      },
+      "icon": "github",
+      "iconBgColor": "#24292e",
+      "recommended": false,
+      "builtin": true,
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "displayName": {
+        "en": "Custom API",
+        "zh-CN": "自定义 API"
+      },
+      "description": {
+        "en": "Claude / OpenAI compatible",
+        "zh-CN": "兼容 Claude / OpenAI"
+      },
+      "icon": "key",
+      "iconBgColor": "#da7756",
+      "recommended": false,
+      "builtin": true,
+      "enabled": true
+    }
+  ]
+}

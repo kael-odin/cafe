@@ -20,9 +20,9 @@ app.log
 # Local docs
 local_docs/
 
-# Local plugins
-halo-local/
-product.json
+# Local plugins (uncomment to exclude)
+# halo-local/
+# product.json
 
 # Local deploy scripts
 scripts/deploy_local_*.sh

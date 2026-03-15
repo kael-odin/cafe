@@ -139,9 +139,19 @@ export function loadProductConfig(): ProductConfig {
  */
 function getDefaultProductConfig(): ProductConfig {
   return {
-    name: 'Halo',
-    version: '1.0.0',
+    name: 'Cafe',
+    version: '2.0.8',
     authProviders: [
+      {
+        type: 'github-copilot',
+        displayName: { en: 'GitHub Copilot', 'zh-CN': 'GitHub Copilot' },
+        description: { en: 'Use your Copilot subscription', 'zh-CN': '使用您的 Copilot 订阅' },
+        icon: 'github',
+        iconBgColor: '#24292e',
+        recommended: false,
+        builtin: true,
+        enabled: true
+      },
       {
         type: 'custom',
         displayName: { en: 'Custom API', 'zh-CN': '自定义 API' },

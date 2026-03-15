@@ -4,7 +4,7 @@
 
 import { create } from 'zustand'
 import { api } from '../api'
-import type { HaloConfig, AppView, McpServerStatus } from '../types'
+import type { CafeConfig, AppView, McpServerStatus } from '../types'
 import { hasAnyAISource } from '../types'
 
 // Git Bash installation progress
@@ -23,7 +23,7 @@ interface AppState {
   error: string | null
 
   // Config
-  config: HaloConfig | null
+  config: CafeConfig | null
 
   // MCP Status (cached from last conversation)
   mcpStatus: McpServerStatus[]
@@ -39,8 +39,8 @@ interface AppState {
   goBack: () => void  // Navigate back to previous view
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
-  setConfig: (config: HaloConfig) => void
-  updateConfig: (updates: Partial<HaloConfig>) => void
+  setConfig: (config: CafeConfig) => void
+  updateConfig: (updates: Partial<CafeConfig>) => void
   setMcpStatus: (status: McpServerStatus[], timestamp: number) => void
 
   // Git Bash actions
@@ -252,7 +252,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.log('[Store] Config response:', response.success ? 'success' : 'failed')
 
       if (response.success && response.data) {
-        const config = response.data as HaloConfig
+        const config = response.data as CafeConfig
 
         set({ config })
 
