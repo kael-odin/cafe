@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import type { HaloConfig, ThemeMode } from '../../types'
+import type { HaloConfig, ThemeMode, SendKeyMode } from '../../types'
 import { useTranslation, setLanguage, getCurrentLanguage, SUPPORTED_LOCALES, type LocaleCode } from '../../i18n'
 import { api } from '../../api'
 
@@ -19,12 +19,21 @@ export function AppearanceSection({ config, setConfig }: AppearanceSectionProps)
   // Theme state
   const [theme, setTheme] = useState<ThemeMode>(config?.appearance?.theme || 'system')
 
+  // Send key mode state
+  const [sendKeyMode, setSendKeyMode] = useState<SendKeyMode>(config?.chat?.sendKeyMode || 'enter')
+
   // Auto-save helper for appearance settings
   const autoSave = useCallback(async (partialConfig: Partial<HaloConfig>) => {
     const newConfig = { ...config, ...partialConfig } as HaloConfig
     await api.setConfig(partialConfig)
     setConfig(newConfig)
   }, [config, setConfig])
+
+  // Handle send key mode change with auto-save
+  const handleSendKeyModeChange = async (value: SendKeyMode) => {
+    setSendKeyMode(value)
+    await autoSave({ chat: { ...config?.chat, sendKeyMode: value } })
+  }
 
   // Handle theme change with auto-save
   const handleThemeChange = async (value: ThemeMode) => {
@@ -77,6 +86,29 @@ export function AppearanceSection({ config, setConfig }: AppearanceSectionProps)
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Send Key */}
+        <div>
+          <label className="block text-sm text-muted-foreground mb-2">{t('Send Key')}</label>
+          <div className="flex gap-4">
+            {(['enter', 'ctrl-enter'] as SendKeyMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleSendKeyModeChange(mode)}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  sendKeyMode === mode
+                    ? 'bg-primary/20 text-primary border border-primary'
+                    : 'bg-secondary hover:bg-secondary/80'
+                }`}
+              >
+                {mode === 'enter' ? t('Enter') : t('Ctrl+Enter')}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {sendKeyMode === 'enter' ? t('Press Enter to send, Shift+Enter for new line') : t('Press Ctrl+Enter to send, Enter for new line')}
+          </p>
         </div>
       </div>
     </section>

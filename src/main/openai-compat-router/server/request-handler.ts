@@ -154,9 +154,17 @@ async function fetchUpstream(
     // Build headers: start with custom headers, then add defaults
     // Custom headers can override Authorization if needed (e.g., OAuth providers)
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(customHeaders || {}),
     }
+    // Remove any case variant of content-type to avoid duplicate values
+    // (e.g., user may have set 'content-type' lowercase; fetch merges same headers
+    // case-insensitively into "application/json, application/json")
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === 'content-type') {
+        delete headers[key]
+      }
+    }
+    headers['Content-Type'] = 'application/json'
     // Only add Authorization if not provided in custom headers
     if (!headers['Authorization']) {
       headers['Authorization'] = `Bearer ${apiKey}`
@@ -203,6 +211,21 @@ async function fetchAnthropicUpstream(
       ...(customHeaders || {}),
       'x-api-key': apiKey,
     }
+
+    // Deduplicate content-type: sdkHeaders (lowercase from Express) and customHeaders
+    // (user-defined, any casing) may both contain content-type. When a plain object
+    // with two differently-cased keys like 'content-type' and 'Content-Type' is passed
+    // to fetch, undici normalizes both to the same header and joins the values with
+    // ", " — producing "application/json, application/json" which upstream APIs reject.
+    const contentTypeValue = Object.entries(headers).find(
+      ([k]) => k.toLowerCase() === 'content-type'
+    )?.[1]
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === 'content-type') {
+        delete headers[key]
+      }
+    }
+    headers['content-type'] = contentTypeValue || 'application/json'
 
     return await fetch(targetUrl, {
       method: 'POST',

@@ -21,6 +21,7 @@
 
 import { useState, useRef, useEffect, useMemo, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
 import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe } from 'lucide-react'
+import { useAppStore } from '../../stores/app.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { getOnboardingPrompt } from '../onboarding/onboardingData'
@@ -53,6 +54,7 @@ interface ImageError {
 
 export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false, slashCommands = [] }: InputAreaProps) {
   const { t } = useTranslation()
+  const sendKeyMode = useAppStore(state => state.config?.chat?.sendKeyMode ?? 'enter')
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [images, setImages] = useState<ImageAttachment[]>([])
@@ -354,11 +356,22 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Mobile: Enter for newline, send via button only
-    // PC: Enter to send, Shift+Enter for newline
-    if (e.key === 'Enter' && !e.shiftKey && !isMobile()) {
-      e.preventDefault()
-      handleSend()
+    // Mobile: send via button only
+    // PC: respect sendKeyMode setting
+    if (!isMobile()) {
+      if (sendKeyMode === 'ctrl-enter') {
+        // Ctrl+Enter to send, Enter for new line
+        if (e.key === 'Enter' && e.ctrlKey) {
+          e.preventDefault()
+          handleSend()
+        }
+      } else {
+        // Enter to send, Shift+Enter for new line
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          handleSend()
+        }
+      }
     }
     // Esc to stop
     if (e.key === 'Escape' && isGenerating) {
@@ -513,6 +526,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
             canSend={canSend}
             onSend={handleSend}
             onStop={onStop}
+            sendKeyMode={sendKeyMode}
           />
         </div>
       </div>
@@ -543,6 +557,7 @@ interface InputToolbarProps {
   canSend: boolean
   onSend: () => void
   onStop: () => void
+  sendKeyMode: 'enter' | 'ctrl-enter'
 }
 
 function InputToolbar({
@@ -561,7 +576,8 @@ function InputToolbar({
   attachMenuRef,
   canSend,
   onSend,
-  onStop
+  onStop,
+  sendKeyMode
 }: InputToolbarProps) {
   const { t } = useTranslation()
   return (
@@ -682,7 +698,11 @@ function InputToolbar({
                 : 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
               }
             `}
-            title={thinkingEnabled ? t('Send (Deep Thinking)') : t('Send')}
+            title={
+              sendKeyMode === 'ctrl-enter'
+                ? (thinkingEnabled ? t('Send (Deep Thinking) — Ctrl+Enter') : t('Send — Ctrl+Enter'))
+                : (thinkingEnabled ? t('Send (Deep Thinking) — Enter') : t('Send — Enter'))
+            }
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
