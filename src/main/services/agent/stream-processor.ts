@@ -29,6 +29,7 @@ import {
   extractResultUsage
 } from './message-utils'
 import { broadcastMcpStatus } from './mcp-manager'
+import type { SDKResultMessage, SDKAssistantMessage } from './sdk-types'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
@@ -654,7 +655,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
       }
 
       // Extract token usage from result message
-      tokenUsage = extractResultUsage(msg, lastSingleUsage)
+      tokenUsage = extractResultUsage(msg as SDKResultMessage, lastSingleUsage)
       if (tokenUsage) {
         console.log(`[Agent][${conversationId}] Token usage (single API):`, tokenUsage)
       }

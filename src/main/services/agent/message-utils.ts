@@ -8,6 +8,7 @@
  */
 
 import type { Thought, ImageAttachment, CanvasContext } from './types'
+import type { SDKMessage, SDKAssistantMessage, SDKResultMessage, UsageInfo, ResultUsageInfo } from './sdk-types'
 
 // ============================================
 // Canvas Context Formatting
@@ -108,7 +109,7 @@ function generateThoughtId(): string {
  * @param displayModel - The actual model name to display (user-configured model, not SDK's internal model)
  * @returns Thought object or null if message type is not relevant
  */
-export function parseSDKMessage(message: any, displayModel?: string): Thought | null {
+export function parseSDKMessage(message: SDKMessage, displayModel?: string): Thought | null {
   const timestamp = new Date().toISOString()
 
   // System initialization
@@ -238,12 +239,7 @@ export function parseSDKMessage(message: any, displayModel?: string): Thought | 
 /**
  * Extract single API call usage from assistant message
  */
-export function extractSingleUsage(assistantMsg: any): {
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheCreationTokens: number
-} | null {
+export function extractSingleUsage(assistantMsg: SDKAssistantMessage): UsageInfo | null {
   const msgUsage = assistantMsg.message?.usage
   if (!msgUsage) return null
 
@@ -258,14 +254,7 @@ export function extractSingleUsage(assistantMsg: any): {
 /**
  * Extract token usage from result message
  */
-export function extractResultUsage(resultMsg: any, lastSingleUsage: ReturnType<typeof extractSingleUsage>): {
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheCreationTokens: number
-  totalCostUsd: number
-  contextWindow: number
-} | null {
+export function extractResultUsage(resultMsg: SDKResultMessage, lastSingleUsage: UsageInfo | null): ResultUsageInfo | null {
   const modelUsage = resultMsg.modelUsage as Record<string, { contextWindow?: number }> | undefined
   const totalCostUsd = resultMsg.total_cost_usd as number | undefined
 

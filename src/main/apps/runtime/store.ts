@@ -329,6 +329,71 @@ export class ActivityStore {
     return rows.map(rowToEntry)
   }
 
+  /**
+   * Batch get runs for multiple apps.
+   * More efficient than calling getRun() for each app.
+   */
+  getRunsBatch(runIds: string[]): Map<string, AutomationRun | null> {
+    if (runIds.length === 0) return new Map()
+    
+    const placeholders = runIds.map(() => '?').join(', ')
+    const sql = `
+      SELECT * FROM automation_runs WHERE run_id IN (${placeholders})
+    `
+    const rows = this.db.prepare(sql).all(...runIds) as RunRow[]
+    const result = new Map<string, AutomationRun | null>()
+    for (const row of rows) {
+      result.set(row.run_id, rowToRun(row))
+    }
+    return result
+  }
+
+  /**
+   * Batch get entries for multiple runs.
+   * More efficient than calling getEntry() for each run.
+   */
+  getEntriesBatch(entryIds: string[]): Map<string, ActivityEntry | null> {
+    if (entryIds.length === 0) return new Map()
+    
+    const placeholders = entryIds.map(() => '?').join(', ')
+    const sql = `
+      SELECT * FROM activity_entries WHERE id IN (${placeholders})
+    `
+    const rows = this.db.prepare(sql).all(...entryIds) as EntryRow[]
+    const result = new Map<string, ActivityEntry | null>()
+    for (const row of rows) {
+      result.set(row.id, rowToEntry(row))
+    }
+    return result
+  }
+
+  /**
+   * Batch get latest runs for multiple apps.
+   * Returns a map of appId -> latest run (or null)
+   */
+  getLatestRunsBatch(appIds: string[]): Map<string, AutomationRun | null> {
+    if (appIds.length === 0) return new Map()
+    
+    const placeholders = appIds.map(() => '?').join(', ')
+    const sql = `
+      SELECT ar.* FROM automation_runs ar1
+      WHERE ar1.app_id IN (${placeholders})
+      AND ar1.started_at = (
+        SELECT MAX(started_at) FROM automation_runs ar2 
+        WHERE ar2.app_id = ar1.app_id
+      )
+      ORDER BY ar1.started_at DESC
+    `
+    const rows = this.db.prepare(sql).all(...appIds) as RunRow[]
+    const result = new Map<string, AutomationRun | null>()
+    
+    for (const row of rows) {
+      result.set(row.app_id, rowToRun(row))
+    }
+    
+    return result
+  }
+
   // ── Data Lifecycle ──────────────────────────
 
   /**
