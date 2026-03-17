@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * Agent Module - Message Utilities
  *
  * Utilities for building and parsing messages including:
@@ -27,9 +27,24 @@ export function formatCanvasContext(canvasContext?: CanvasContext): string {
   }
 
   const activeTab = canvasContext.activeTab
-  const tabsSummary = canvasContext.tabs
-    .map(t => `${t.isActive ? '▶ ' : '  '}${t.title} (${t.type})${t.path ? ` - ${t.path}` : ''}${t.url ? ` - ${t.url}` : ''}`)
-    .join('\n')
+  const MAX_TABS_LINES = 30
+  const MAX_CONTEXT_CHARS = 6000
+
+  const allLines = canvasContext.tabs.map(t =>
+    `${t.isActive ? '▶ ' : '  '}${t.title} (${t.type})${t.path ? ` - ${t.path}` : ''}${t.url ? ` - ${t.url}` : ''}`
+  )
+  const visibleLines = allLines.slice(0, MAX_TABS_LINES)
+  let tabsSummary = visibleLines.join('\n')
+
+  if (allLines.length > MAX_TABS_LINES) {
+    tabsSummary += `\n... (${allLines.length - MAX_TABS_LINES} more tabs)`
+  }
+
+  // Hard cap injected context to prevent provider context-length errors.
+  // (Providers like Copilot/Tencent may have smaller limits than Claude.)
+  if (tabsSummary.length > MAX_CONTEXT_CHARS) {
+    tabsSummary = tabsSummary.slice(0, MAX_CONTEXT_CHARS) + '\n... (canvas context truncated)'
+  }
 
   return `<Cafe_canvas>
 Content canvas currently open in Cafe:

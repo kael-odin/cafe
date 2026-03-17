@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Markdown Viewer - Rendered markdown with source toggle
  *
  * Features:
@@ -33,27 +33,30 @@ function resolveImageSrc(src: string | undefined, basePath: string): string {
   // No base path available, return original
   if (!basePath) return src
 
+  const normBase = basePath.replace(/\\/g, '/')
+  const toCafeUrl = (p: string) => `cafe-file:///${encodeURI(p.replace(/\\/g, '/').replace(/^\/+/, ''))}`
+
   // Resolve relative paths to Cafe-file:// protocol
   if (src.startsWith('./')) {
-    return `Cafe-file://${basePath}/${src.slice(2)}`
+    return toCafeUrl(`${normBase}/${src.slice(2)}`)
   }
 
   if (src.startsWith('../')) {
-    const parts = basePath.split('/')
+    const parts = normBase.split('/')
     const srcParts = src.split('/')
     while (srcParts[0] === '..') {
       parts.pop()
       srcParts.shift()
     }
-    return `Cafe-file://${parts.join('/')}/${srcParts.join('/')}`
+    return toCafeUrl(`${parts.join('/')}/${srcParts.join('/')}`)
   }
 
   if (src.startsWith('/')) {
-    return `Cafe-file://${src}`
+    return toCafeUrl(src)
   }
 
   // Relative path without prefix
-  return `Cafe-file://${basePath}/${src}`
+  return toCafeUrl(`${normBase}/${src}`)
 }
 
 interface MarkdownViewerProps {
@@ -70,7 +73,8 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
   const codePlugin = useCodePlugin()
 
   // Get the base directory of the markdown file for resolving relative paths
-  const basePath = tab.path ? tab.path.substring(0, tab.path.lastIndexOf('/')) : ''
+  const normalizedPath = tab.path ? tab.path.replace(/\\/g, '/') : ''
+  const basePath = normalizedPath ? normalizedPath.substring(0, normalizedPath.lastIndexOf('/')) : ''
 
   // Restore scroll position
   useEffect(() => {

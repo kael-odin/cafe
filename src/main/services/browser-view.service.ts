@@ -641,12 +641,35 @@ class BrowserViewManager {
     wc.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       if (!isMainFrame) return
 
-      // Ignore aborted loads (user navigation)
-      if (errorCode === -3) return
+      // Aborted loads (often code -3) can happen during redirects / rapid navigation.
+      // If we ignore them without clearing isLoading, the UI can get stuck showing
+      // a spinner even though the page is already visible.
+      if (errorCode === -3) {
+        this.updateState(viewId, {
+          isLoading: false,
+          error: undefined,
+          canGoBack: wc.canGoBack(),
+          canGoForward: wc.canGoForward(),
+        })
+        this.emitStateChangeImmediate(viewId)
+        return
+      }
 
       this.updateState(viewId, {
         isLoading: false,
         error: errorDescription || `Error ${errorCode}`,
+      })
+      this.emitStateChangeImmediate(viewId)
+    })
+
+    // Defensive: ensure loading indicator clears even if did-finish-load doesn't fire
+    // (e.g., aborts, some SPA flows). This event fires when the spinner stops.
+    wc.on('did-stop-loading', () => {
+      this.updateState(viewId, {
+        isLoading: false,
+        canGoBack: wc.canGoBack(),
+        canGoForward: wc.canGoForward(),
+        error: undefined,
       })
       this.emitStateChangeImmediate(viewId)
     })

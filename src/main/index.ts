@@ -1,4 +1,4 @@
-﻿/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
+/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
 /**
  * Cafe - Electron Main Process
  * The main entry point for the Electron application
@@ -46,7 +46,7 @@ Object.assign(console, log.functions)
 // Executed after page load to avoid blocking startup
 // Note: fix-path is ESM-only, loaded dynamically to support both CJS and ESM builds
 
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, Menu, protocol } from 'electron'
 import open from 'open'
 
 // GPU compatibility: Disable hardware acceleration on Windows to prevent blank window issues
@@ -56,6 +56,21 @@ if (process.platform === 'win32') {
   app.disableHardwareAcceleration()
   app.commandLine.appendSwitch('disable-gpu')
 }
+
+// Register custom scheme as privileged so the renderer can load resources via <img src="cafe-file://...">
+// Must be called before app.whenReady().
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'cafe-file',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+])
 
 // Anti-fingerprinting: Disable automation detection features in Chromium
 // This prevents websites from detecting the app as an automated browser

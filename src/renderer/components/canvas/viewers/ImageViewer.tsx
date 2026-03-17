@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Image Viewer - Image display with zoom and pan
  *
  * Features:
@@ -35,7 +35,7 @@ export function ImageViewer({ tab }: ImageViewerProps) {
   const imageUrl = tab.path
     ? (api.isRemoteMode()
         ? api.getArtifactDownloadUrl(tab.path)
-        : `Cafe-file://${tab.path}`)
+        : `cafe-file:///${encodeURI(tab.path.replace(/\\/g, '/'))}`)
     : tab.content
       ? `data:${tab.mimeType || 'image/png'};base64,${tab.content}`
       : ''

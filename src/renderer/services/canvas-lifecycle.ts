@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Canvas Lifecycle Manager - Centralized BrowserView and Tab Management
  *
  * This class manages the lifecycle of BrowserViews and Canvas tabs in an
@@ -12,11 +12,11 @@
  *
  * Content types and rendering:
  * - code/markdown/json/csv/text: Load content via IPC, render in React
- * - image: Use Cafe-file:// protocol (bypasses CSP in renderer)
+ * - image: Use cafe-file:// protocol (bypasses CSP in renderer)
  * - pdf: Use BrowserView with file:// (BrowserView has no cross-origin restrictions)
  * - browser: Use BrowserView with https:// URLs
  *
- * Protocol: Cafe-file://
+ * Protocol: cafe-file://
  * - Custom protocol registered in main process (protocol.service.ts)
  * - Used by <img> tags in renderer to bypass CSP restrictions
  * - NOT used for BrowserView (BrowserView can access file:// directly)

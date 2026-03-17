@@ -887,6 +887,34 @@ export class BrowserContext implements BrowserContextInterface {
     
     console.log(`[BrowserContext] captureScreenshot - webContents OK, URL: ${webContents.getURL()}`)
 
+    const tryCdpViewport = async (): Promise<{ data: string; mimeType: string }> => {
+      const response = await this.sendCDPCommand<{ data: string }>('Page.captureScreenshot', {
+        format,
+        quality
+      })
+      return { data: response.data, mimeType: getMimeType(format) }
+    }
+
+    const tryCdpFullPage = async (): Promise<{ data: string; mimeType: string }> => {
+      const metrics = await this.sendCDPCommand<{
+        contentSize: { width: number; height: number }
+      }>('Page.getLayoutMetrics')
+
+      const response = await this.sendCDPCommand<{ data: string }>('Page.captureScreenshot', {
+        format,
+        quality,
+        clip: {
+          x: 0,
+          y: 0,
+          width: metrics.contentSize.width,
+          height: metrics.contentSize.height,
+          scale: 1
+        },
+        captureBeyondViewport: true
+      })
+      return { data: response.data, mimeType: getMimeType(format) }
+    }
+
     // For element-specific capture, still use CDP
     if (options?.uid) {
       const element = this.getElementByUid(options.uid)
@@ -899,15 +927,33 @@ export class BrowserContext implements BrowserContextInterface {
 
       if (box) {
         console.log(`[BrowserContext] captureScreenshot - capturing element with uid: ${options.uid}`)
-        const nativeImage = await webContents.capturePage({
-          x: Math.round(box.x),
-          y: Math.round(box.y),
-          width: Math.round(box.width),
-          height: Math.round(box.height)
-        })
-        const dataUrl = nativeImage.toDataURL()
-        const base64 = dataUrl.split(',')[1] || ''
-        return { data: base64, mimeType: getMimeType(format) }
+        try {
+          const nativeImage = await webContents.capturePage({
+            x: Math.round(box.x),
+            y: Math.round(box.y),
+            width: Math.round(box.width),
+            height: Math.round(box.height)
+          })
+          const dataUrl = nativeImage.toDataURL()
+          const base64 = dataUrl.split(',')[1] || ''
+          return { data: base64, mimeType: getMimeType(format) }
+        } catch (e) {
+          const msg = (e as Error)?.message || String(e)
+          console.warn('[BrowserContext] captureScreenshot - element native capture failed:', msg)
+          // Element capture via CDP clip as fallback.
+          const response = await this.sendCDPCommand<{ data: string }>('Page.captureScreenshot', {
+            format,
+            quality,
+            clip: {
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+              scale: 1
+            }
+          })
+          return { data: response.data, mimeType: getMimeType(format) }
+        }
       }
     }
 
@@ -935,8 +981,9 @@ export class BrowserContext implements BrowserContextInterface {
         const base64 = dataUrl.split(',')[1] || ''
         return { data: base64, mimeType: getMimeType(format) }
       } catch (error) {
-        console.error('[BrowserContext] captureScreenshot - full page capture failed:', error)
-        throw error
+        const msg = (error as Error)?.message || String(error)
+        console.warn('[BrowserContext] captureScreenshot - full page native capture failed, falling back to CDP:', msg)
+        return await tryCdpFullPage()
       }
     }
 
@@ -1005,20 +1052,27 @@ export class BrowserContext implements BrowserContextInterface {
               }
             } catch {}
 
-            const img = await withLocalTimeout(webContents.capturePage(), 10_000, 'capturePage(viewport) retry')
-            const size = img.getSize()
-            const dataUrl = img.toDataURL()
-            const base64 = dataUrl.split(',')[1] || ''
-
-            // Restore invisible host window state (best-effort).
             try {
-              const host = browserViewManager.getOffscreenWindow?.()
-              if (host && !host.isDestroyed()) {
-                try { host.setOpacity(0.01) } catch {}
-              }
-            } catch {}
+              const img = await withLocalTimeout(webContents.capturePage(), 10_000, 'capturePage(viewport) retry')
+              const size = img.getSize()
+              const dataUrl = img.toDataURL()
+              const base64 = dataUrl.split(',')[1] || ''
 
-            return { base64, width: size.width, height: size.height }
+              // Restore invisible host window state (best-effort).
+              try {
+                const host = browserViewManager.getOffscreenWindow?.()
+                if (host && !host.isDestroyed()) {
+                  try { host.setOpacity(0.01) } catch {}
+                }
+              } catch {}
+
+              return { base64, width: size.width, height: size.height }
+            } catch (retryErr) {
+              const retryMsg = (retryErr as Error)?.message || String(retryErr)
+              console.warn('[BrowserContext] captureScreenshot - native retry still failed, falling back to CDP:', retryMsg)
+              const cdp = await tryCdpViewport()
+              return { base64: cdp.data, width: 1, height: 1 }
+            }
           }
           throw e
         }
@@ -1075,7 +1129,8 @@ export class BrowserContext implements BrowserContextInterface {
         await sleep(400 * attempt)
       }
 
-      throw new Error('Screenshot capture produced empty frames (0x0)')
+      // Last resort: CDP viewport capture (may succeed even when native surfaces are flaky).
+      return await tryCdpViewport()
     } catch (error) {
       console.error('[BrowserContext] captureScreenshot failed:', error)
       throw error
