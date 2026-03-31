@@ -880,6 +880,28 @@ export function saveConfig(config: Partial<CafeConfig>): CafeConfig {
 }
 
 /**
+ * Resolve Claude CLI config directory based on mode
+ * 
+ * @param mode - Config directory mode: 'halo' (isolated), 'cc' (share with Claude CLI), 'custom'
+ * @param customDir - Custom directory path (only used when mode === 'custom')
+ * @returns Resolved config directory path
+ */
+export function resolveClaudeConfigDir(
+  mode?: 'halo' | 'cc' | 'custom',
+  customDir?: string
+): string {
+  const effectiveMode = mode ?? getConfig().agent?.configDirMode ?? 'halo'
+  switch (effectiveMode) {
+    case 'cc':
+      return join(homedir(), '.claude')
+    case 'custom':
+      return customDir || join(app.getPath('userData'), 'claude-config')
+    default:
+      return join(app.getPath('userData'), 'claude-config')
+  }
+}
+
+/**
  * Set auto launch on system startup
  */
 export function setAutoLaunch(enabled: boolean): void {

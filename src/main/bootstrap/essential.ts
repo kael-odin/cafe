@@ -27,6 +27,7 @@ import { registerArtifactHandlers } from '../ipc/artifact'
 import { registerSystemHandlers } from '../ipc/system'
 import { registerUpdaterHandlers, initAutoUpdater } from '../services/updater.service'
 import { registerAuthHandlers } from '../ipc/auth'
+import { registerCliConfigHandlers } from '../ipc/cli-config'
 import { registerBootstrapStatusHandler } from './state'
 
 /**

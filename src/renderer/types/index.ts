@@ -120,6 +120,8 @@ export interface SystemConfig {
 export interface AgentConfig {
   maxTurns: number;         // Maximum tool call turns per message
   promptProfile?: 'official' | 'Cafe';  // System prompt profile
+  configDirMode?: 'halo' | 'cc' | 'custom';  // Claude CLI config directory mode
+  customConfigDir?: string;  // Custom config dir path (when configDirMode === 'custom')
 }
 
 // Remote access configuration
@@ -628,6 +630,50 @@ export interface ValidationResult {
   valid: boolean;
   message?: string;
   model?: string;
+}
+
+// ============================================
+// CLI Config Types (Claude CLI Integration)
+// ============================================
+
+// Config directory mode for Claude CLI integration
+export type ConfigDirMode = 'halo' | 'cc' | 'custom';
+
+// Paths for CLI config directories
+export interface CliConfigPaths {
+  haloDefault: string;
+  ccDefault: string;
+  current: string;
+  configDirMode: ConfigDirMode;
+  customConfigDir?: string;
+}
+
+// Skill entry found in Claude CLI installation
+export interface CliSkillEntry {
+  name: string;
+  ccPath: string;
+  haloPath: string;
+  exists: boolean;
+}
+
+// MCP server entry found in Claude CLI installation
+export interface CliMcpEntry {
+  name: string;
+  ccConfig: Record<string, unknown>;
+  haloConfig?: unknown;
+  exists: boolean;
+}
+
+// Migration actions for skills and MCP servers
+export type CliSkillAction = 'skip' | 'overwrite' | 'rename';
+export type CliMcpAction = 'skip' | 'overwrite';
+
+// Migration result for each item
+export interface CliMigrateResult {
+  name: string;
+  status: 'migrated' | 'skipped' | 'renamed' | 'merged' | 'error';
+  dest?: string;
+  error?: string;
 }
 
 // Default values

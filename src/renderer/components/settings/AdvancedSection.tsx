@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { api } from '../../api'
 import type { CafeConfig } from '../../types'
+import { CLIConfigSection } from './CLIConfigSection'
 
 interface AdvancedSectionProps {
   config: CafeConfig | null
@@ -145,6 +146,9 @@ export function AdvancedSection({ config, setConfig }: AdvancedSectionProps) {
           />
         </div>
       </div>
+
+      {/* CLI Config Section */}
+      <CLIConfigSection />
     </section>
   )
 }

@@ -386,6 +386,14 @@ export interface CafeAPI {
   storeToggleRegistry: (input: { registryId: string; enabled: boolean }) => Promise<IpcResponse>
   storeUpdateRegistryAdapterConfig: (input: { registryId: string; adapterConfig: Record<string, unknown> }) => Promise<IpcResponse>
   onStoreSyncStatusChanged: (callback: (data: { registryId: string; status: string; appCount: number; error?: string }) => void) => () => void
+
+  // CLI Config (Skills + MCP migration, config dir mode)
+  cliConfigGetPaths: () => Promise<IpcResponse>
+  cliConfigScanSkills: () => Promise<IpcResponse>
+  cliConfigMigrateSkills: (actions: Array<{ name: string; action: 'skip' | 'overwrite' | 'rename' }>) => Promise<IpcResponse>
+  cliConfigScanMcp: () => Promise<IpcResponse>
+  cliConfigMigrateMcp: (actions: Array<{ name: string; action: 'skip' | 'overwrite' }>) => Promise<IpcResponse>
+  cliConfigSetConfigDir: (mode: 'halo' | 'cc' | 'custom', customDir?: string) => Promise<IpcResponse>
 }
 
 interface IpcResponse<T = unknown> {
@@ -705,6 +713,14 @@ const api: CafeAPI = {
   storeToggleRegistry: (input) => ipcRenderer.invoke('store:toggle-registry', input),
   storeUpdateRegistryAdapterConfig: (input) => ipcRenderer.invoke('store:update-registry-adapter-config', input),
   onStoreSyncStatusChanged: (callback) => createEventListener('store:sync-status-changed', callback as (data: unknown) => void),
+
+  // CLI Config
+  cliConfigGetPaths: () => ipcRenderer.invoke('cli-config:get-paths'),
+  cliConfigScanSkills: () => ipcRenderer.invoke('cli-config:scan-skills'),
+  cliConfigMigrateSkills: (actions) => ipcRenderer.invoke('cli-config:migrate-skills', actions),
+  cliConfigScanMcp: () => ipcRenderer.invoke('cli-config:scan-mcp'),
+  cliConfigMigrateMcp: (actions) => ipcRenderer.invoke('cli-config:migrate-mcp', actions),
+  cliConfigSetConfigDir: (mode, customDir?) => ipcRenderer.invoke('cli-config:set-config-dir', mode, customDir),
 
   // Notification (in-app toast)
   onNotificationToast: (callback) => createEventListener('notification:toast', callback),

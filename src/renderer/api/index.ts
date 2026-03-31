@@ -1640,6 +1640,44 @@ export const api = {
     }
     return onEvent('store:sync-status-changed', callback)
   },
+
+  // ===== CLI Config (desktop-only) =====
+  cliConfigGetPaths: async (): Promise<ApiResponse> => {
+    if (isElectron()) return window.Cafe.cliConfigGetPaths()
+    return { success: false, error: 'CLI config not available in remote mode' }
+  },
+
+  cliConfigScanSkills: async (): Promise<ApiResponse> => {
+    if (isElectron()) return window.Cafe.cliConfigScanSkills()
+    return { success: false, error: 'CLI config not available in remote mode' }
+  },
+
+  cliConfigMigrateSkills: async (
+    actions: Array<{ name: string; action: 'skip' | 'overwrite' | 'rename' }>
+  ): Promise<ApiResponse> => {
+    if (isElectron()) return window.Cafe.cliConfigMigrateSkills(actions)
+    return { success: false, error: 'CLI config not available in remote mode' }
+  },
+
+  cliConfigScanMcp: async (): Promise<ApiResponse> => {
+    if (isElectron()) return window.Cafe.cliConfigScanMcp()
+    return { success: false, error: 'CLI config not available in remote mode' }
+  },
+
+  cliConfigMigrateMcp: async (
+    actions: Array<{ name: string; action: 'skip' | 'overwrite' }>
+  ): Promise<ApiResponse> => {
+    if (isElectron()) return window.Cafe.cliConfigMigrateMcp(actions)
+    return { success: false, error: 'CLI config not available in remote mode' }
+  },
+
+  cliConfigSetConfigDir: async (
+    mode: 'halo' | 'cc' | 'custom',
+    customDir?: string
+  ): Promise<ApiResponse> => {
+    if (isElectron()) return window.Cafe.cliConfigSetConfigDir(mode, customDir)
+    return { success: false, error: 'CLI config not available in remote mode' }
+  },
 }
 
 // Export type for the API

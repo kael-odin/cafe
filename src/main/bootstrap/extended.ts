@@ -48,6 +48,7 @@ import { initAppRuntime, shutdownAppRuntime } from '../apps/runtime'
 import { registerAppHandlers } from '../ipc/app'
 import { registerNotificationChannelHandlers } from '../ipc/notification-channels'
 import { registerStoreHandlers } from '../ipc/store'
+import { registerCliConfigHandlers } from '../ipc/cli-config'
 import { initRegistryService, shutdownRegistryService } from '../store'
 
 // Module-level reference to db for cleanup
@@ -174,6 +175,10 @@ export function initializeExtendedServices(): void {
 
   // Store: IPC handlers for App Store registry operations
   registerStoreHandlers()
+
+  // CLI Config: Claude CLI integration (config dir mode, skills/MCP migration)
+  // Desktop-only feature for migrating from standalone Claude CLI
+  registerCliConfigHandlers()
 
   // Windows-specific: Initialize Git Bash in background
   if (process.platform === 'win32') {
