@@ -75,7 +75,9 @@ export function LoginSelector({ onSelectProvider, onSelectCustom }: LoginSelecto
     const fetchProviders = async () => {
       try {
         const result = await api.authGetProviders()
+        console.log('[LoginSelector] authGetProviders result:', result)
         if (result.success && result.data) {
+          console.log('[LoginSelector] Providers data:', result.data)
           setProviders(result.data as AuthProviderConfig[])
         } else {
           // Fallback to default providers if fetch fails

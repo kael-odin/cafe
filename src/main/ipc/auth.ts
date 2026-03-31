@@ -31,6 +31,7 @@ export function registerAuthHandlers(): void {
   ipcMain.handle('auth:get-providers', async () => {
     try {
       const providers = getEnabledAuthProviderConfigs()
+      console.log('[Auth IPC] get-providers returning:', providers.map(p => p.type).join(', '))
       return { success: true, data: providers }
     } catch (error: unknown) {
       const err = error as Error

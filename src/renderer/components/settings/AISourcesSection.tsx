@@ -132,12 +132,14 @@ export function AISourcesSection({ config, setConfig }: AISourcesSectionProps) {
     const fetchProviders = async () => {
       try {
         const result = await api.authGetProviders()
+        console.log('[AISourcesSection] authGetProviders result:', result)
         if (result.success && result.data) {
           // Filter to get only OAuth providers (exclude 'custom' which is API Key based)
           // Note: 'builtin' means the provider code is bundled in the app, not that it's not OAuth
           // Both external and builtin OAuth providers should be shown here
           const providers = (result.data as AuthProviderConfig[])
             .filter(p => p.type !== 'custom')
+          console.log('[AISourcesSection] OAuth providers after filter:', providers.map(p => p.type))
           setOAuthProviders(providers)
         }
       } catch (error) {
