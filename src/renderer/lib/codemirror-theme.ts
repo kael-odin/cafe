@@ -396,3 +396,8 @@ export const haloLightTheme = haloTheme
  * Dark theme variant
  */
 export const haloDarkTheme = haloTheme
+
+/**
+ * Cafe theme alias (for branding consistency)
+ */
+export const CafeTheme = haloTheme
