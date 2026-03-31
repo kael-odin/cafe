@@ -352,6 +352,7 @@ export interface CafeAPI {
   appGetDataPath: (appId: string) => Promise<IpcResponse<{ path: string }>>
   appOpenDataFolder: (appId: string) => Promise<IpcResponse>
   appMoveSpace: (input: { appId: string; newSpaceId: string | null }) => Promise<IpcResponse>
+  appClearMemory: (appId: string) => Promise<IpcResponse<{ removed: number }>>
 
   // App Chat
   appChatSend: (request: { appId: string; spaceId: string; message: string; images?: Array<{ type: string; media_type: string; data: string }>; thinkingEnabled?: boolean }) => Promise<IpcResponse>
@@ -670,6 +671,7 @@ const api: CafeAPI = {
   appGetDataPath: (appId) => ipcRenderer.invoke('app:get-data-path', appId),
   appOpenDataFolder: (appId) => ipcRenderer.invoke('app:open-data-folder', appId),
   appMoveSpace: (input) => ipcRenderer.invoke('app:move-space', input),
+  appClearMemory: (appId) => ipcRenderer.invoke('app:clear-memory', appId),
 
   // App Chat
   appChatSend: (request) => ipcRenderer.invoke('app:chat-send', request),

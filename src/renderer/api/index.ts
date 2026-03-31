@@ -1486,6 +1486,13 @@ export const api = {
     return httpRequest('POST', `/api/apps/${appId}/move-space`, { newSpaceId })
   },
 
+  appClearMemory: async (appId: string): Promise<ApiResponse<{ removed: number }>> => {
+    if (isElectron()) {
+      return window.Cafe.appClearMemory(appId)
+    }
+    return httpRequest('POST', `/api/apps/${appId}/clear-memory`)
+  },
+
   // App Chat
   appChatSend: async (request: { appId: string; spaceId: string; message: string; images?: Array<{ type: string; media_type: string; data: string }>; thinkingEnabled?: boolean }): Promise<ApiResponse> => {
     if (isElectron()) {
