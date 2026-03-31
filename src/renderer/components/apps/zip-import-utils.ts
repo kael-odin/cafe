@@ -3,22 +3,22 @@
  *
  * Pure utility module for Digital Human bundle import.
  * Supports two input modes:
- *   1. ZIP file  鈫?parseDigitalHumanZip(file)
- *   2. Folder    鈫?parseDigitalHumanFolder(files)
+ *   1. ZIP file  → parseDigitalHumanZip(file)
+ *   2. Folder    → parseDigitalHumanFolder(files)
  *
- * Both converge on the same Layer 2 (structure) 鈫?Layer 3 (schema)
+ * Both converge on the same Layer 2 (structure) → Layer 3 (schema)
  * validation pipeline. Layer 4 (Zod) runs on the backend at install time.
  *
  * Bundle Format:
  *   my-digital-human/            (or .zip)
- *   鈹溾攢鈹€ spec.yaml            鈫?required, the automation spec
- *   鈹斺攢鈹€ skills/              鈫?optional, bundled skills
- *       鈹溾攢鈹€ skill-a/
- *       鈹?  鈹斺攢鈹€ SKILL.md
- *       鈹斺攢鈹€ skill-b/
- *           鈹溾攢鈹€ SKILL.md
- *           鈹斺攢鈹€ references/
- *               鈹斺攢鈹€ guide.md
+ *   ├── spec.yaml            ← required, the automation spec
+ *   └── skills/              ← optional, bundled skills
+ *       ├── skill-a/
+ *       │   └── SKILL.md
+ *       └── skill-b/
+ *           ├── SKILL.md
+ *           └── references/
+ *               └── guide.md
  *
  * Supports both flat (spec.yaml at root) and wrapped (single top-level
  * folder 鈥?macOS zip default). macOS metadata is silently ignored.

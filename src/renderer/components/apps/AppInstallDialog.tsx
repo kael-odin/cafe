@@ -1108,10 +1108,10 @@ function ImportTab({
               {t('Bundle format (zip or folder)')}
             </p>
             <pre className="text-xs text-muted-foreground font-mono leading-relaxed">
-{`鈹溾攢鈹€ spec.yaml          鈫?${t('Required: automation spec')}
-鈹斺攢鈹€ skills/            鈫?${t('Optional: bundled skills')}
-    鈹斺攢鈹€ skill-name/
-        鈹斺攢鈹€ SKILL.md`}
+{`├── spec.yaml          ← ${t('Required: automation spec')}
+└── skills/            ← ${t('Optional: bundled skills')}
+    └── skill-name/
+        └── SKILL.md`}
             </pre>
           </div>
         </>
