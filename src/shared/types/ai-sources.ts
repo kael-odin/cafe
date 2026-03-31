@@ -66,6 +66,8 @@ export type BuiltinProviderId =
   | 'zhipu'
   | 'minimax'
   | 'minimax-global'
+  | 'minimax-token-plan'
+  | 'minimax-token-plan-global'
   | 'yi'
   | 'stepfun'
   | 'openrouter'
@@ -76,6 +78,7 @@ export type BuiltinProviderId =
   | 'fireworks'
   | 'xai'
   | 'github-copilot'
+  | 'claude'
 
 /**
  * Provider ID (built-in + future extensions)
