@@ -24,6 +24,12 @@ export function isCapacitor(): boolean {
   if (typeof window === 'undefined') return false
   try {
     const cap = (window as any).Capacitor
+    // Check for Capacitor platform (more reliable than isNativePlatform)
+    if (cap?.getPlatform && typeof cap.getPlatform === 'function') {
+      const platform = cap.getPlatform()
+      return platform === 'android' || platform === 'ios'
+    }
+    // Fallback to isNativePlatform
     return cap?.isNativePlatform?.() === true
   } catch {
     return false
