@@ -5,6 +5,7 @@
 
 import {
   isElectron,
+  isCapacitor,
   httpRequest,
   onEvent,
   connectWebSocket,
@@ -13,7 +14,12 @@ import {
   unsubscribeFromConversation,
   setAuthToken,
   clearAuthToken,
-  getAuthToken
+  getAuthToken,
+  getServerUrl,
+  setServerUrl,
+  clearServerUrl,
+  restoreServerUrl,
+  onWsStateChange
 } from './transport'
 import type {
   HealthStatusResponse,
@@ -38,7 +44,15 @@ interface ApiResponse<T = unknown> {
 export const api = {
   // ===== Authentication (remote only) =====
   isRemoteMode: () => !isElectron(),
+  isCapacitorMode: () => isCapacitor(),
   isAuthenticated: () => !!getAuthToken(),
+
+  // ===== Server URL management (Capacitor mode) =====
+  setServerUrl,
+  getServerUrl,
+  clearServerUrl,
+  restoreServerUrl,
+  onWsStateChange,
 
   login: async (token: string): Promise<ApiResponse> => {
     if (isElectron()) {

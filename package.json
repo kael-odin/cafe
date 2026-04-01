@@ -193,7 +193,12 @@
       "node_modules/@parcel/watcher-*/**/*",
       "node_modules/better-sqlite3/build/Release/*.node"
     ],
-    "publish": null,
+    "publish": {
+      "provider": "github",
+      "owner": "kael-odin",
+      "repo": "cafe",
+      "releaseType": "release"
+    },
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "resources/icon.icns",

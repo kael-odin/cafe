@@ -24,7 +24,8 @@ import { NotificationToast } from './components/notification/NotificationToast'
 import { useNotificationStore } from './stores/notification.store'
 import { api } from './api'
 import { useTranslation } from './i18n'
-import { clearPendingServerUrl, setAuthToken } from './api/transport'
+import { clearPendingServerUrl, setAuthToken, isCapacitor, isElectron } from './api/transport'
+import type { WsConnectionState } from './api/transport'
 import type { AgentEventBase, Thought, ToolCall, CafeConfig, AgentErrorType, Question } from './types'
 import type { ServerEntry } from './stores/server.store'
 import type { ServerAddedInfo } from './pages/ServerConnectPage'
@@ -134,6 +135,30 @@ export default function App() {
       await initializeOnboarding()
     }
 
+    // Capacitor mobile app: check for saved servers first
+    if (isCapacitor()) {
+      // Hydrate server store first — this pushes active URL + token to transport
+      useServerStore.getState().hydrate()
+      const savedUrl = api.restoreServerUrl()
+
+      if (savedUrl) {
+        console.log('[App] Capacitor: restored server URL:', savedUrl)
+        // Continue with normal initialization
+        doInit('query')
+      } else {
+        // No saved server URL — check if we have any servers stored
+        const { servers } = useServerStore.getState()
+        if (servers.length > 0) {
+          console.log('[App] Capacitor: have servers, showing ServerList')
+          setView('serverList')
+        } else {
+          console.log('[App] Capacitor: no servers, showing ServerConnect')
+          setView('serverConnect')
+        }
+      }
+      return
+    }
+
     // 1. Pull: Query current status immediately
     // This handles HMR reload and error recovery scenarios where event was already sent
     api.getBootstrapStatus().then(status => {
@@ -193,12 +218,21 @@ export default function App() {
     }
   }, [config?.appearance?.theme])
 
-  // Connect WebSocket for remote mode
+  // Connect WebSocket for remote mode and Capacitor mode
   useEffect(() => {
-    if (api.isRemoteMode()) {
-      console.log('[App] Remote mode detected, connecting WebSocket...')
+    if (api.isRemoteMode() || api.isCapacitorMode()) {
+      console.log('[App] Remote/Capacitor mode detected, connecting WebSocket...')
       api.connectWebSocket()
     }
+  }, [])
+
+  // WebSocket state listener for remote/capacitor mode
+  useEffect(() => {
+    if (!api.isRemoteMode() && !api.isCapacitorMode()) return
+    const unsub = api.onWsStateChange((state: WsConnectionState) => {
+      console.log('[App] WebSocket state changed:', state)
+    })
+    return () => unsub()
   }, [])
 
   // Initialize AI Browser IPC listeners for active view sync
