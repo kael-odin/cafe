@@ -205,7 +205,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Initialize app
   initialize: async () => {
-    console.log('[Store] initialize() called')
+    console.log('[Store] === initialize() START ===')
+    const startTime = Date.now()
+    
     try {
       set({ isLoading: true, error: null })
 
@@ -249,8 +251,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Load config from main process
       // config:get handler is registered in Essential services, so this always works.
       console.log('[Store] Loading config...')
+      const configStartTime = Date.now()
       const response = await api.getConfig()
-      console.log('[Store] Config response:', response.success ? 'success' : 'failed')
+      const configElapsed = Date.now() - configStartTime
+      console.log(`[Store] Config response in ${configElapsed}ms:`, response.success ? 'success' : 'failed')
 
       if (response.success && response.data) {
         const config = response.data as CafeConfig
@@ -293,7 +297,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } finally {
       set({ isLoading: false })
-      console.log('[Store] initialize() completed')
+      const totalTime = Date.now() - startTime
+      console.log(`[Store] === initialize() END (took ${totalTime}ms) ===`)
     }
   }
 }))

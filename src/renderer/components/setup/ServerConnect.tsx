@@ -151,6 +151,12 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
   // Complete connection — called after successful auth
   const completeConnection = (url: string, token: string, name: string) => {
     console.log(`[ServerConnect] Connection complete: ${name} (${url})`)
+    // Clear timeout
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current)
+      connectionTimeoutRef.current = null
+    }
+    setIsConnecting(false) // Reset connection state before calling onServerAdded
     onServerAdded({ url, token, name })
   }
 
@@ -161,27 +167,48 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
 
     setError(null)
     setIsConnecting(true)
-    console.log('[ServerConnect] Authenticating...')
+    console.log('[ServerConnect] === Starting authentication ===')
     console.log('[ServerConnect] Server URL:', serverUrl)
     console.log('[ServerConnect] API Server URL:', api.getServerUrl())
+    console.log('[ServerConnect] Access code:', code.substring(0, 2) + '***')
+
+    // Set 15s timeout for authentication
+    const timeoutId = setTimeout(() => {
+      console.warn('[ServerConnect] ❌ Authentication timeout after 15s')
+      setIsConnecting(false)
+      setError(t('Connection timeout. Please check your network and try again.'))
+    }, 15000)
+    connectionTimeoutRef.current = timeoutId
 
     try {
+      console.log('[ServerConnect] Calling api.login()...')
+      const startTime = Date.now()
       const result = await api.login(code)
+      const elapsed = Date.now() - startTime
+      console.log(`[ServerConnect] api.login() returned in ${elapsed}ms, success:`, result.success)
 
       if (result.success) {
-        console.log('[ServerConnect] Authentication successful')
+        console.log('[ServerConnect] ✅ Authentication successful, fetching server name...')
         const name = serverName || await fetchServerName(serverUrl)
+        console.log('[ServerConnect] Server name:', name)
         completeConnection(serverUrl, code, name)
       } else {
-        console.warn('[ServerConnect] Auth failed:', result.error)
+        console.warn('[ServerConnect] ❌ Auth failed:', result.error)
         setError(result.error || t('Invalid access code'))
+        setIsConnecting(false)
       }
     } catch (err) {
-      console.error('[ServerConnect] Auth error:', err)
+      console.error('[ServerConnect] ❌ Auth exception:', err)
       const errorMsg = err instanceof Error ? err.message : 'Authentication failed'
       setError(t('Authentication failed') + `: ${errorMsg}`)
-    } finally {
       setIsConnecting(false)
+    } finally {
+      // Clear timeout if not already triggered
+      if (connectionTimeoutRef.current === timeoutId) {
+        clearTimeout(timeoutId)
+        connectionTimeoutRef.current = null
+        console.log('[ServerConnect] Timeout cleared')
+      }
     }
   }
 
@@ -288,19 +315,41 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
       setStep('auth')
       setIsConnecting(true)
 
+      // Set 15s timeout for QR authentication
+      const timeoutId = setTimeout(() => {
+        if (!mountedRef.current) return
+        console.warn('[ServerConnect] QR authentication timeout after 15s')
+        setIsConnecting(false)
+        setError(t('Connection timeout. Please check your network and try again.'))
+      }, 15000)
+      connectionTimeoutRef.current = timeoutId
+
       try {
         const result = await api.login(code)
         if (!mountedRef.current) return
+        
+        // Clear timeout if not already triggered
+        if (connectionTimeoutRef.current === timeoutId) {
+          clearTimeout(timeoutId)
+          connectionTimeoutRef.current = null
+        }
+        
         if (result.success) {
           console.log('[ServerConnect] QR auth successful')
           completeConnection(url, code, name)
-          setIsConnecting(false) // Reset connection state after success
         } else {
           setError(result.error || t('Invalid access code'))
           setIsConnecting(false)
         }
       } catch {
         if (!mountedRef.current) return
+        
+        // Clear timeout if not already triggered
+        if (connectionTimeoutRef.current === timeoutId) {
+          clearTimeout(timeoutId)
+          connectionTimeoutRef.current = null
+        }
+        
         setError(t('Authentication failed'))
         setIsConnecting(false)
       }
