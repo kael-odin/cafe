@@ -48,6 +48,7 @@ android/capacitor-cordova-android-plugins/build/
 android/local.properties
 *.apk
 *.keystore
+*.jks
 
 # iOS build artifacts
 ios/
