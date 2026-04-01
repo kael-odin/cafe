@@ -300,16 +300,18 @@ export function connectWebSocket(): void {
         }
 
         // Start foreground service to keep WebSocket alive in background (Capacitor only)
-        if (isCapacitor()) {
-          import('./foreground-service')
-            .then(({ startForegroundService }) => {
-              return startForegroundService('Halo', 'Connected to desktop')
-            })
-            .catch((err) => { 
-              console.warn('[Transport] Foreground service not available:', err)
-              /* plugin not available - this is OK, app can still work */
-            })
-        }
+        // DISABLED: Plugin registration issue causing crashes - will fix in next iteration
+        // if (isCapacitor()) {
+        //   import('./foreground-service')
+        //     .then(({ startForegroundService }) => {
+        //       return startForegroundService('Halo', 'Connected to desktop')
+        //     })
+        //     .catch((err) => { 
+        //       console.warn('[Transport] Foreground service not available:', err)
+        //       /* plugin not available - this is OK, app can still work */
+        //     })
+        // }
+        console.log('[Transport] Foreground service disabled for debugging')
 
         return
       }
