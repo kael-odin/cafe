@@ -278,7 +278,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     setIsDragOver(false)
 
     // Check for artifact drag-drop first
-    const referencePath = e.dataTransfer.getData('text/halo-artifact-relative-path') || e.dataTransfer.getData('text/plain')
+    const referencePath = e.dataTransfer.getData('text/cafe-artifact-relative-path') || e.dataTransfer.getData('text/plain')
     if (referencePath && handleDropReference(referencePath)) {
       return
     }
@@ -764,7 +764,7 @@ interface InputToolbarProps {
   onImageClick: () => void
   imageCount: number
   maxImages: number
-  attachMenuRef: React.RefObject<HTMLDivElement | null>
+  attachMenuRef: React.RefObject<HTMLDivElement>
   canSend: boolean
   onSend: () => void
   onStop: () => void

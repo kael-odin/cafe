@@ -113,7 +113,7 @@ export interface AppManagerDeps {
 
   /**
    * Resolve a space ID to its filesystem path for skill sync.
-   * For halo-temp this returns the artifacts/ subdirectory (Claude SDK workDir).
+   * For cafe-temp this returns the artifacts/ subdirectory (Claude SDK workDir).
    * Returns null if the space does not exist.
    */
   getSpacePath: (spaceId: string) => string | null
@@ -121,7 +121,7 @@ export interface AppManagerDeps {
   /**
    * Resolve a space ID to its raw data path for app work directories.
    * Always returns space.path directly — never the artifacts/ subdirectory —
-   * so that .halo/apps/{appId}/ is co-located with where the runtime writes memory.
+   * so that .cafe/apps/{appId}/ is co-located with where the runtime writes memory.
    * Returns null if the space does not exist.
    */
   getAppDataPath: (spaceId: string) => string | null

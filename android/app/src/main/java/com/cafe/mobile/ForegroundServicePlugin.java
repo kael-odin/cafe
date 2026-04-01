@@ -10,7 +10,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
- * Capacitor plugin to control the HaloForegroundService from JavaScript.
+ * Capacitor plugin to control the CafeForegroundService from JavaScript.
  *
  * Provides start() and stop() methods that the WebSocket transport layer
  * calls to keep the connection alive when the app goes to background.
@@ -28,7 +28,7 @@ public class ForegroundServicePlugin extends Plugin {
         Log.d(TAG, "Starting foreground service: " + title + " - " + body);
 
         try {
-            Intent serviceIntent = new Intent(getContext(), HaloForegroundService.class);
+            Intent serviceIntent = new Intent(getContext(), CafeForegroundService.class);
             serviceIntent.putExtra("title", title);
             serviceIntent.putExtra("body", body);
 
@@ -50,7 +50,7 @@ public class ForegroundServicePlugin extends Plugin {
         Log.d(TAG, "Stopping foreground service");
 
         try {
-            Intent serviceIntent = new Intent(getContext(), HaloForegroundService.class);
+            Intent serviceIntent = new Intent(getContext(), CafeForegroundService.class);
             getContext().stopService(serviceIntent);
             call.resolve();
         } catch (Exception e) {

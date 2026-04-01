@@ -25,9 +25,9 @@ import androidx.core.app.NotificationCompat;
  * The service shows a persistent notification: "Cafe · Connected to desktop"
  * which is standard behavior for foreground services (similar to messaging apps).
  */
-public class HaloForegroundService extends Service {
+public class CafeForegroundService extends Service {
 
-    private static final String TAG = "HaloForegroundService";
+    private static final String TAG = "CafeForegroundService";
     private static final String CHANNEL_ID = "cafe_connection_channel";
     private static final int NOTIFICATION_ID = 1001;
 

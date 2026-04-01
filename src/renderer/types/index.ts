@@ -1,5 +1,5 @@
-// ============================================		      	    				  	  	  	 		 		       	 	 	         	 	    					 
-// Halo Type Definitions
+// ============================================
+// Cafe Type Definitions
 // ============================================
 
 // Import values needed in this file's scope
@@ -7,9 +7,11 @@ import {
   AISourcesConfig,
   DEFAULT_MODEL,
   getCurrentModelName,
-  hasAnyAISource
+  hasAnyAISource,
+  ApiProvider  // Import ApiProvider for use in ApiConfig interface
 } from '../../shared/types/ai-sources';
-import { NotificationChannelsConfig }  from '../../shared/types/notification-channels';
+import { NotificationChannelsConfig, WecomBotConfig, ImChannelsConfig } from '../../shared/types/notification-channels';
+import { FileChangesSummary } from '../../shared/file-changes';
 // Re-export them
 export { DEFAULT_MODEL, getCurrentModelName, hasAnyAISource };
 
@@ -119,16 +121,16 @@ export interface SystemConfig {
 // Agent behavior configuration
 export interface AgentConfig {
   maxTurns: number;         // Maximum tool call turns per message
-  promptProfile?: 'official' | 'halo';  // System prompt profile
-  configDirMode?: 'halo' | 'cc' | 'custom';  // Claude CLI config directory mode
+  promptProfile?: 'official' | 'cafe';  // System prompt profile
+  configDirMode?: 'cafe' | 'cc' | 'custom';  // Claude CLI config directory mode
   customConfigDir?: string;  // Custom config dir path (when configDirMode === 'custom')
 }
 
 // CLI config types (used by CLIConfigSection)
-export type ConfigDirMode = 'halo' | 'cc' | 'custom';
+export type ConfigDirMode = 'cafe' | 'cc' | 'custom';
 
 export interface CliConfigPaths {
-  haloDefault: string;
+  cafeDefault: string;
   ccDefault: string;
   current: string;
   configDirMode: ConfigDirMode;
@@ -138,14 +140,14 @@ export interface CliConfigPaths {
 export interface CliSkillEntry {
   name: string;
   ccPath: string;
-  haloPath: string;
+  cafePath: string;
   exists: boolean;
 }
 
 export interface CliMcpEntry {
   name: string;
   ccConfig: Record<string, unknown>;
-  haloConfig?: unknown;
+  cafeConfig?: unknown;
   exists: boolean;
 }
 
@@ -179,7 +181,7 @@ export interface McpStdioServerConfig {
   args?: string[];
   env?: Record<string, string>;
   timeout?: number;  // milliseconds
-  disabled?: boolean;  // Halo extension: temporarily disable this server
+  disabled?: boolean;  // Cafe extension: temporarily disable this server
 }
 
 // MCP HTTP server (REST API)
@@ -187,7 +189,7 @@ export interface McpHttpServerConfig {
   type: 'http';
   url: string;
   headers?: Record<string, string>;
-  disabled?: boolean;  // Halo extension: temporarily disable this server
+  disabled?: boolean;  // Cafe extension: temporarily disable this server
 }
 
 // MCP SSE server (Server-Sent Events)
@@ -195,7 +197,7 @@ export interface McpSseServerConfig {
   type: 'sse';
   url: string;
   headers?: Record<string, string>;
-  disabled?: boolean;  // Halo extension: temporarily disable this server
+  disabled?: boolean;  // Cafe extension: temporarily disable this server
 }
 
 // Union type for all MCP server configs
@@ -236,7 +238,7 @@ export interface NetworkConfig {
   proxy?: string;  // Manual proxy URL (e.g. http://host:port, socks5://host:port). Empty = use system proxy.
 }
 
-export interface HaloConfig {
+export interface CafeConfig {
   api: ApiConfig;  // Legacy, kept for backward compatibility
   aiSources: AISourcesConfig;  // v2 format: { version: 2, currentId, sources: [] }
   permissions: PermissionConfig;
@@ -246,8 +248,8 @@ export interface HaloConfig {
   mcpServers: McpServersConfig;  // MCP servers configuration
   notifications?: NotificationConfig;  // Notification preferences
   notificationChannels?: NotificationChannelsConfig;  // External notification channels
-  wecomBot?: import('../../../shared/types/notification-channels').WecomBotConfig;  // WeCom Intelligent Bot
-  imChannels?: import('../../../shared/types/notification-channels').ImChannelsConfig;  // Global IM channel config
+  wecomBot?: WecomBotConfig;  // WeCom Intelligent Bot
+  imChannels?: ImChannelsConfig;  // Global IM channel config
   agent?: AgentConfig;  // Agent behavior settings
   layout?: LayoutConfig;  // Global layout preferences (panel sizes and visibility)
   chat?: ChatConfig;  // Chat behavior preferences
@@ -653,7 +655,7 @@ export interface AppState {
   view: AppView;
   isLoading: boolean;
   error: string | null;
-  config: HaloConfig | null;
+  config: CafeConfig | null;
 }
 
 // ============================================
@@ -677,7 +679,7 @@ export interface ValidationResult {
 }
 
 // Default values
-export const DEFAULT_CONFIG: HaloConfig = {
+export const DEFAULT_CONFIG: CafeConfig = {
   api: {
     provider: 'anthropic',
     apiKey: '',
@@ -712,13 +714,13 @@ export const DEFAULT_CONFIG: HaloConfig = {
 
 // Helper functions hasAnyAISource and getCurrentModelName are now imported from shared module
 
-// Helper function wrapper for HaloConfig (uses v2 format)
-export function hasAnyConfiguredSource(config: HaloConfig): boolean {
+// Helper function wrapper for CafeConfig (uses v2 format)
+export function hasAnyConfiguredSource(config: CafeConfig): boolean {
   return hasAnyAISource(config.aiSources);
 }
 
-// Helper function wrapper for HaloConfig (uses v2 format)
-export function getConfigCurrentModelName(config: HaloConfig): string {
+// Helper function wrapper for CafeConfig (uses v2 format)
+export function getConfigCurrentModelName(config: CafeConfig): string {
   return getCurrentModelName(config.aiSources);
 }
 

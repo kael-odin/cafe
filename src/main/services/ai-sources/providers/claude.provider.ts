@@ -18,7 +18,7 @@
  * - Must delete x-api-key header (use Authorization: Bearer instead)
  * - Must add '?beta=true' to /v1/messages URL
  *
- * Note: Halo uses the official Anthropic Claude SDK which handles tool naming
+ * Note: Cafe uses the official Anthropic Claude SDK which handles tool naming
  * correctly, so we don't need to add/strip the mcp_ prefix ourselves.
  */
 

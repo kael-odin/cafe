@@ -925,15 +925,15 @@ export function saveConfig(config: Partial<CafeConfig>): CafeConfig {
 /**
  * Resolve Claude CLI config directory based on mode
  * 
- * @param mode - Config directory mode: 'halo' (isolated), 'cc' (share with Claude CLI), 'custom'
+ * @param mode - Config directory mode: 'cafe' (isolated), 'cc' (share with Claude CLI), 'custom'
  * @param customDir - Custom directory path (only used when mode === 'custom')
  * @returns Resolved config directory path
  */
 export function resolveClaudeConfigDir(
-  mode?: 'halo' | 'cc' | 'custom',
+  mode?: 'cafe' | 'cc' | 'custom',
   customDir?: string
 ): string {
-  const effectiveMode = mode ?? getConfig().agent?.configDirMode ?? 'halo'
+  const effectiveMode = mode ?? getConfig().agent?.configDirMode ?? 'cafe'
   switch (effectiveMode) {
     case 'cc':
       return join(homedir(), '.claude')

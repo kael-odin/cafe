@@ -105,6 +105,25 @@ export default defineConfig({
       alias: {
         '@': resolve(__dirname, 'src/renderer')
       }
+    },
+    // Ensure these modules are bundled, not external
+    optimizeDeps: {
+      // Pre-bundle these packages to avoid dynamic /@fs/ paths in remote access
+      include: ['@streamdown/code', 'shiki'],
+      // Force re-bundling on startup
+      force: true
+    },
+    server: {
+      // Allow serving files from project root and node_modules
+      fs: {
+        // Allow all paths (needed for /@fs/ paths in development)
+        strict: false,
+        allow: ['..']
+      },
+      // Watch node_modules for changes (helps with dependency resolution)
+      watch: {
+        ignored: ['!**/node_modules/@streamdown/**', '!**/node_modules/shiki/**']
+      }
     }
   }
 })

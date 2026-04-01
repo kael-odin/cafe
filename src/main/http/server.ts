@@ -111,6 +111,11 @@ export async function startHttpServer(
     }
   })
 
+  // Logout endpoint - clear authentication cookie
+  expressApp.post('/api/remote/logout', (req: Request, res: Response) => {
+    res.json({ success: true })
+  })
+
   // Status endpoint (public)
   expressApp.get('/api/remote/status', (req: Request, res: Response) => {
     res.json({
@@ -151,6 +156,11 @@ export async function startHttpServer(
       // Proxy to Vite dev server
       const viteUrl = new URL(req.originalUrl, VITE_DEV_SERVER)
 
+      // Debug log for /@fs/ requests
+      if (req.path.includes('/@fs/')) {
+        console.log(`[HTTP] Proxying /@fs/ request: ${req.originalUrl}`)
+      }
+
       const proxyReq = httpRequest(viteUrl, {
         method: req.method,
         headers: {
@@ -158,6 +168,10 @@ export async function startHttpServer(
           host: new URL(VITE_DEV_SERVER).host
         }
       }, (proxyRes) => {
+        // Log response for /@fs/ requests
+        if (req.path.includes('/@fs/')) {
+          console.log(`[HTTP] /@fs/ response status: ${proxyRes.statusCode}`)
+        }
         res.writeHead(proxyRes.statusCode || 200, proxyRes.headers)
         proxyRes.pipe(res)
       })
@@ -455,7 +469,7 @@ function getRemoteLoginPage(): string {
         });
 
         if (res.ok) {
-          localStorage.setItem('Cafe_remote_token', token);
+          localStorage.setItem('cafe_remote_token', token);
           // Set cookie for server-side auth check
           document.cookie = 'Cafe_authenticated=true; path=/';
           error.textContent = '';

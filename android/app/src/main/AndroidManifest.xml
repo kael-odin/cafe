@@ -27,7 +27,7 @@
         </activity>
 
         <service
-            android:name=".HaloForegroundService"
+            android:name=".CafeForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

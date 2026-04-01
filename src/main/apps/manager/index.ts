@@ -118,7 +118,7 @@ export async function initAppManager(
 
   // App work directories always use space.path directly so they match the path
   // the runtime uses when reading/writing memory (execute.ts: getSpace().path).
-  // halo-temp's artifacts/ offset is only relevant for skill file sync.
+  // cafe-temp's artifacts/ offset is only relevant for skill file sync.
   const getAppDataPath = (spaceId: string): string | null => {
     const space = getSpace(spaceId)
     if (!space) return null

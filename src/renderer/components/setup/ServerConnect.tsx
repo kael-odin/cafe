@@ -390,7 +390,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
 
         {/* Logo / Brand */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/40 flex items-center justify-center mb-4 halo-breathe">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/40 flex items-center justify-center mb-4 cafe-breathe">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20" />
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
@@ -493,7 +493,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
           <div className="w-full max-w-sm space-y-4 animate-fade-in">
             {/* Connection status */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border">
-              <div className="w-2 h-2 rounded-full bg-halo-success" />
+              <div className="w-2 h-2 rounded-full bg-cafe-success" />
               <span className="text-sm text-foreground truncate flex-1">{serverUrl}</span>
               <button
                 onClick={() => {

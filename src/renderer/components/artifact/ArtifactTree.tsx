@@ -45,7 +45,7 @@ const DIMMED_DIRS = new Set([
   // Test/Coverage
   'coverage', '.nyc_output', '__pycache__', '.pytest_cache', '.mypy_cache', '.tox',
   // Misc
-  '.halo', 'logs', 'tmp', 'temp',
+  '.cafe', 'logs', 'tmp', 'temp',
 ])
 
 function isDimmed(name: string): boolean {
@@ -1033,7 +1033,7 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         style={style}
         draggable
         onDragStart={(e) => {
-          e.dataTransfer.setData('text/halo-artifact-relative-path', data.relativePath)
+          e.dataTransfer.setData('text/cafe-artifact-relative-path', data.relativePath)
           e.dataTransfer.setData('text/plain', data.relativePath)
           e.dataTransfer.effectAllowed = 'copy'
         }}

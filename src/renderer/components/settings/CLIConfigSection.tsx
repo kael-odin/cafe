@@ -2,9 +2,9 @@
  * CLI Config Section Component
  *
  * Advanced section for Claude CLI integration:
- * - Config directory mode (Halo Default / CC Default / Custom)
- * - Migrate Skills from ~/.claude/skills/ to Halo
- * - Migrate MCP servers from ~/.claude.json to Halo
+ * - Config directory mode (Cafe Default / CC Default / Custom)
+ * - Migrate Skills from ~/.claude/skills/ to Cafe
+ * - Migrate MCP servers from ~/.claude.json to Cafe
  *
  * Desktop-only (not shown in remote mode).
  */
@@ -113,7 +113,7 @@ function CLIConfigSectionInner() {
 
   // Config dir state
   const [paths, setPaths] = useState<CliConfigPaths | null>(null)
-  const [configMode, setConfigMode] = useState<ConfigDirMode>('halo')
+  const [configMode, setConfigMode] = useState<ConfigDirMode>('cafe')
   const [customDir, setCustomDir] = useState('')
   const [configDirSaving, setConfigDirSaving] = useState(false)
   const [configDirResult, setConfigDirResult] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -149,7 +149,7 @@ function CLIConfigSectionInner() {
       if (res.success && res.data) {
         const p = res.data as CliConfigPaths
         setPaths(p)
-        setConfigMode(p.configDirMode ?? 'halo')
+        setConfigMode(p.configDirMode ?? 'cafe')
         setCustomDir(p.customConfigDir ?? '')
       }
     })
@@ -212,29 +212,29 @@ function CLIConfigSectionInner() {
         icon={<FolderInput className="w-4 h-4" />}
       >
         <p className="text-xs text-muted-foreground mb-3">
-          {t('Choose where Halo reads Claude CLI config (skills, settings, MCP). Changing this affects all future conversations.')}
+          {t('Choose where Cafe reads Claude CLI config (skills, settings, MCP). Changing this affects all future conversations.')}
         </p>
 
         <div className="space-y-2">
-          {/* Halo Default */}
+          {/* Cafe Default */}
           <label className={cn(
             'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
             'hover:bg-muted/50',
-            configMode === 'halo' ? 'border-primary bg-primary/5' : 'border-border'
+            configMode === 'cafe' ? 'border-primary bg-primary/5' : 'border-border'
           )}>
             <input
               type="radio"
               name="configDirMode"
-              value="halo"
-              checked={configMode === 'halo'}
-              onChange={() => handleModeChange('halo')}
+              value="cafe"
+              checked={configMode === 'cafe'}
+              onChange={() => handleModeChange('cafe')}
               className="mt-0.5 accent-primary"
             />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">{t('Halo Default')} <span className="ml-1 text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">{t('Recommended')}</span></p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("Halo's isolated config directory. Won't interfere with your standalone Claude CLI.")}</p>
+              <p className="font-medium text-sm">{t('Cafe Default')} <span className="ml-1 text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">{t('Recommended')}</span></p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("Cafe's isolated config directory. Won't interfere with your standalone Claude CLI.")}</p>
               {paths && (
-                <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{paths.haloDefault}</p>
+                <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{paths.cafeDefault}</p>
               )}
             </div>
           </label>
@@ -260,7 +260,7 @@ function CLIConfigSectionInner() {
                   <AlertTriangle className="w-3 h-3" /> {t('High Risk')}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("Share Claude CLI's ~/.claude directory. Skills and settings are shared but changes in Claude CLI will affect Halo.")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("Share Claude CLI's ~/.claude directory. Skills and settings are shared but changes in Claude CLI will affect Cafe.")}</p>
               {paths && (
                 <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{paths.ccDefault}</p>
               )}
@@ -289,7 +289,7 @@ function CLIConfigSectionInner() {
                   type="text"
                   value={customDir}
                   onChange={e => { setCustomDir(e.target.value); setConfigDirResult(null) }}
-                  placeholder={paths?.haloDefault ?? '/path/to/claude-config'}
+                  placeholder={paths?.cafeDefault ?? '/path/to/claude-config'}
                   className="mt-2 w-full px-3 py-1.5 text-xs font-mono bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   onClick={e => e.stopPropagation()}
                 />
@@ -348,7 +348,7 @@ function CLIConfigSectionInner() {
         ) : undefined}
       >
         <p className="text-xs text-muted-foreground">
-          {t('Copy skills from your Claude CLI installation (~/.claude/skills/) into Halo\'s skill directory.')}
+          {t('Copy skills from your Claude CLI installation (~/.claude/skills/) into Cafe\'s skill directory.')}
         </p>
 
         {/* Scan button */}
@@ -389,7 +389,7 @@ function CLIConfigSectionInner() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono font-medium truncate">{skill.name}</p>
                     {skill.exists && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in Halo')}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in Cafe')}</p>
                     )}
                   </div>
                   <select
@@ -467,7 +467,7 @@ function CLIConfigSectionInner() {
         ) : undefined}
       >
         <p className="text-xs text-muted-foreground">
-          {t('Import MCP server configurations from your Claude CLI (~/.claude.json) into Halo\'s MCP settings.')}
+          {t('Import MCP server configurations from your Claude CLI (~/.claude.json) into Cafe\'s MCP settings.')}
         </p>
 
         {(mcpMigration.phase === 'idle' || mcpMigration.phase === 'error') && (
@@ -506,7 +506,7 @@ function CLIConfigSectionInner() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono font-medium truncate">{s.name}</p>
                     {s.exists && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in Halo')}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in Cafe')}</p>
                     )}
                   </div>
                   <select
@@ -580,11 +580,11 @@ function CLIConfigSectionInner() {
               <p className="font-semibold">{t('High Risk: Shared Config')}</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              {t('Using Claude CLI\'s default directory means Halo and your standalone Claude CLI will share the same skills, settings, and MCP config.')}
+              {t('Using Claude CLI\'s default directory means Cafe and your standalone Claude CLI will share the same skills, settings, and MCP config.')}
             </p>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
-              <li>{t('Changes made by Claude CLI will immediately affect Halo')}</li>
-              <li>{t('Skills installed in Halo will appear in Claude CLI')}</li>
+              <li>{t('Changes made by Claude CLI will immediately affect Cafe')}</li>
+              <li>{t('Skills installed in Cafe will appear in Claude CLI')}</li>
               <li>{t('MCP server changes are shared bidirectionally')}</li>
               <li>{t('Custom API keys and endpoint URLs will be shared and may be overwritten')}</li>
             </ul>

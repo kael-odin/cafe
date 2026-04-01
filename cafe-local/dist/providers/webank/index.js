@@ -23,7 +23,7 @@ var WEBANK_MODEL_NAMES = {
 // src/providers/webank/webank.provider.ts
 var WEBANK_CONFIG = {
   apiUrl: "http://10.107.118.2:3004/v1/chat/completions",
-  apiKey: "sk-VjGJg_xta2oIfVhghalocb",
+  apiKey: "sk-VjGJg_xta2oIfVhgcafecb",
   defaultModel: "glm-4.7",
   availableModels: ["glm-4.7", "deepseek-v3-2"],
   modelNames: WEBANK_MODEL_NAMES

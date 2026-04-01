@@ -56,7 +56,7 @@ export interface ImChannelAdapter {
  * Persistent record of a known IM session.
  *
  * Created automatically when a user first messages the bot in a chat.
- * The `proactive` flag is toggled by the user in Halo's settings UI.
+ * The `proactive` flag is toggled by the user in Cafe's settings UI.
  */
 export interface ImSessionRecord {
   /** Associated digital human (App) ID */

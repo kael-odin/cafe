@@ -1756,7 +1756,7 @@ export const api = {
   },
 
   cliConfigSetConfigDir: async (
-    mode: 'halo' | 'cc' | 'custom',
+    mode: 'cafe' | 'cc' | 'custom',
     customDir?: string
   ): Promise<ApiResponse> => {
     if (isElectron()) return window.Cafe.cliConfigSetConfigDir(mode, customDir)

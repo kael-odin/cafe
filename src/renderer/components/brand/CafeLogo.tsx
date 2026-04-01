@@ -82,6 +82,3 @@ export function CafeLogo({ size = 'md', className = '' }: CafeLogoProps) {
     </div>
   )
 }
-
-// Backward compatibility alias
-export const HaloLogo = CafeLogo

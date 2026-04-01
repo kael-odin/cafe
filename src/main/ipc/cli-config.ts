@@ -3,9 +3,9 @@
  *
  * Handles Claude CLI config directory management and migration:
  * - Get current path configuration
- * - Scan and migrate Skills from ~/.claude/skills/ to Halo
- * - Scan and migrate MCP servers from ~/.claude.json to Halo
- * - Update CLAUDE_CONFIG_DIR mode (halo default / cc default / custom)
+ * - Scan and migrate Skills from ~/.claude/skills/ to Cafe
+ * - Scan and migrate MCP servers from ~/.claude.json to Cafe
+ * - Update CLAUDE_CONFIG_DIR mode (cafe default / cc default / custom)
  */
 
 import { ipcMain } from 'electron'
@@ -43,11 +43,11 @@ export function registerCliConfigHandlers(): void {
     console.log('[CliConfig] cli-config:get-paths')
     try {
       const config = getConfig()
-      const mode = config.agent?.configDirMode ?? 'halo'
+      const mode = config.agent?.configDirMode ?? 'cafe'
       return {
         success: true,
         data: {
-          haloDefault: resolveClaudeConfigDir('halo'),
+          cafeDefault: resolveClaudeConfigDir('cafe'),
           ccDefault: getCCDefaultDir(),
           current: resolveClaudeConfigDir(mode, config.agent?.customConfigDir),
           configDirMode: mode,
@@ -66,14 +66,14 @@ export function registerCliConfigHandlers(): void {
     console.log('[CliConfig] cli-config:scan-skills')
     try {
       const ccSkillsDir = join(getCCDefaultDir(), 'skills')
-      const haloSkillsDir = join(resolveClaudeConfigDir('halo'), 'skills')
+      const cafeSkillsDir = join(resolveClaudeConfigDir('cafe'), 'skills')
 
       if (!(await pathExists(ccSkillsDir))) {
-        return { success: true, data: { skills: [], ccSkillsDir, haloSkillsDir } }
+        return { success: true, data: { skills: [], ccSkillsDir, cafeSkillsDir } }
       }
 
       const entries = await readdir(ccSkillsDir)
-      const skills: Array<{ name: string; ccPath: string; haloPath: string; exists: boolean }> = []
+      const skills: Array<{ name: string; ccPath: string; cafePath: string; exists: boolean }> = []
 
       for (const name of entries) {
         const entryPath = join(ccSkillsDir, name)
@@ -82,14 +82,14 @@ export function registerCliConfigHandlers(): void {
           skills.push({
             name,
             ccPath: entryPath,
-            haloPath: join(haloSkillsDir, name),
-            exists: await pathExists(join(haloSkillsDir, name)),
+            cafePath: join(cafeSkillsDir, name),
+            exists: await pathExists(join(cafeSkillsDir, name)),
           })
         }
       }
 
       console.log(`[CliConfig] scan-skills: found ${skills.length} CC skills`)
-      return { success: true, data: { skills, ccSkillsDir, haloSkillsDir } }
+      return { success: true, data: { skills, ccSkillsDir, cafeSkillsDir } }
     } catch (error: unknown) {
       const err = error as Error
       console.error('[CliConfig] scan-skills failed:', err.message)
@@ -107,9 +107,9 @@ export function registerCliConfigHandlers(): void {
       console.log('[CliConfig] cli-config:migrate-skills, items:', actions.length)
       try {
         const ccSkillsDir = join(getCCDefaultDir(), 'skills')
-        const haloSkillsDir = join(resolveClaudeConfigDir('halo'), 'skills')
+        const cafeSkillsDir = join(resolveClaudeConfigDir('cafe'), 'skills')
 
-        await mkdir(haloSkillsDir, { recursive: true })
+        await mkdir(cafeSkillsDir, { recursive: true })
 
         const results: Array<{ name: string; status: 'migrated' | 'skipped' | 'renamed' | 'error'; dest?: string; error?: string }> = []
 
@@ -129,13 +129,13 @@ export function registerCliConfigHandlers(): void {
             let destName = name
             if (action === 'rename') {
               let suffix = 1
-              while (await pathExists(join(haloSkillsDir, `${name}-cc${suffix > 1 ? String(suffix) : ''}`))) {
+              while (await pathExists(join(cafeSkillsDir, `${name}-cc${suffix > 1 ? String(suffix) : ''}`))) {
                 suffix++
               }
               destName = `${name}-cc${suffix > 1 ? String(suffix) : ''}`
             }
 
-            const destDir = join(haloSkillsDir, destName)
+            const destDir = join(cafeSkillsDir, destName)
             await cp(srcDir, destDir, { recursive: true, force: true })
             console.log(`[CliConfig] Migrated skill: ${name} -> ${destName}`)
             results.push({ name, status: action === 'rename' ? 'renamed' : 'migrated', dest: destName })
@@ -162,8 +162,8 @@ export function registerCliConfigHandlers(): void {
     console.log('[CliConfig] cli-config:scan-mcp')
     try {
       const ccJsonPath = join(homedir(), '.claude.json')
-      const haloConfig = getConfig()
-      const haloMcpServers: Record<string, unknown> = haloConfig.mcpServers ?? {}
+      const cafeConfig = getConfig()
+      const cafeMcpServers: Record<string, unknown> = cafeConfig.mcpServers ?? {}
 
       if (!(await pathExists(ccJsonPath))) {
         return { success: true, data: { servers: [], ccJsonPath } }
@@ -180,8 +180,8 @@ export function registerCliConfigHandlers(): void {
       const servers = Object.entries(ccServers).map(([name, ccConfig]) => ({
         name,
         ccConfig,
-        haloConfig: haloMcpServers[name],
-        exists: name in haloMcpServers,
+        cafeConfig: cafeMcpServers[name],
+        exists: name in cafeMcpServers,
       }))
 
       console.log(`[CliConfig] scan-mcp: found ${servers.length} CC MCP servers`)
@@ -215,8 +215,8 @@ export function registerCliConfigHandlers(): void {
         }
 
         const ccServers = (ccData.mcpServers ?? {}) as Record<string, McpServerConfig>
-        const haloConfig = getConfig()
-        const haloMcpServers: Record<string, McpServerConfig> = { ...(haloConfig.mcpServers ?? {}) }
+        const cafeConfig = getConfig()
+        const cafeMcpServers: Record<string, McpServerConfig> = { ...(cafeConfig.mcpServers ?? {}) }
 
         const results: Array<{ name: string; status: 'merged' | 'skipped' | 'error'; error?: string }> = []
 
@@ -227,7 +227,7 @@ export function registerCliConfigHandlers(): void {
           }
 
           try {
-            haloMcpServers[name] = ccServers[name]
+            cafeMcpServers[name] = ccServers[name]
             console.log(`[CliConfig] Merged MCP server: ${name}`)
             results.push({ name, status: 'merged' })
           } catch (err: unknown) {
@@ -236,8 +236,8 @@ export function registerCliConfigHandlers(): void {
           }
         }
 
-        // Persist updated mcpServers to Halo config
-        saveConfig({ mcpServers: haloMcpServers })
+        // Persist updated mcpServers to Cafe config
+        saveConfig({ mcpServers: cafeMcpServers })
 
         const mergedCount = results.filter(r => r.status === 'merged').length
         console.log(`[CliConfig] MCP migration complete: ${mergedCount}/${actions.length} merged`)
@@ -255,7 +255,7 @@ export function registerCliConfigHandlers(): void {
     'cli-config:set-config-dir',
     async (
       _event,
-      mode: 'halo' | 'cc' | 'custom',
+      mode: 'cafe' | 'cc' | 'custom',
       customDir?: string
     ) => {
       console.log('[CliConfig] cli-config:set-config-dir', mode, customDir)

@@ -63,7 +63,7 @@ const FREQUENCY_PRESETS = [
 
 const DEFAULT_YAML_TEMPLATE = `\
 # ============================================
-# Halo Digital Human Spec - Complete Example
+# Cafe Digital Human Spec - Complete Example
 # ============================================
 # This template shows ALL available fields.
 # Delete or modify sections as needed.
@@ -334,15 +334,15 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
   const { installApp, importApp, loadApps, updateAppOverrides } = useAppsStore()
 
   const currentSpace = useSpaceStore(state => state.currentSpace)
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const cafeSpace = useSpaceStore(state => state.cafeSpace)
   const spaces = useSpaceStore(state => state.spaces)
 
   const allSpaces = useMemo(() => {
     const result: Array<{ id: string; name: string; icon: string }> = []
-    if (haloSpace) result.push(haloSpace)
+    if (cafeSpace) result.push(cafeSpace)
     result.push(...spaces)
     return result
-  }, [haloSpace, spaces])
+  }, [cafeSpace, spaces])
 
   const [mode, setMode] = useState<InstallMode>('visual')
   const [form, setForm] = useState<VisualFormState>({ ...INITIAL_FORM })

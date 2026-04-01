@@ -404,7 +404,7 @@ export interface CafeAPI {
   cliConfigMigrateSkills: (actions: Array<{ name: string; action: 'skip' | 'overwrite' | 'rename' }>) => Promise<IpcResponse>
   cliConfigScanMcp: () => Promise<IpcResponse>
   cliConfigMigrateMcp: (actions: Array<{ name: string; action: 'skip' | 'overwrite' }>) => Promise<IpcResponse>
-  cliConfigSetConfigDir: (mode: 'halo' | 'cc' | 'custom', customDir?: string) => Promise<IpcResponse>
+  cliConfigSetConfigDir: (mode: 'cafe' | 'cc' | 'custom', customDir?: string) => Promise<IpcResponse>
 }
 
 interface IpcResponse<T = unknown> {

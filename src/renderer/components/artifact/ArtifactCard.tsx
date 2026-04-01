@@ -109,7 +109,7 @@ export function ArtifactCard({ artifact, onShowContextMenu }: ArtifactCardProps)
     <div
       draggable
       onDragStart={(e) => {
-        e.dataTransfer.setData('text/halo-artifact-relative-path', artifact.relativePath)
+        e.dataTransfer.setData('text/cafe-artifact-relative-path', artifact.relativePath)
         e.dataTransfer.setData('text/plain', artifact.relativePath)
         e.dataTransfer.effectAllowed = 'copy'
       }}

@@ -131,7 +131,18 @@
         };
 
         window.onunhandledrejection = function(event) {
+          // Ignore Vite HMR WebSocket errors in remote access mode
+          // These occur when accessing via non-localhost URLs in development
           var reason = event.reason;
+          if (reason instanceof Error &&
+              reason.message &&
+              reason.message.includes('WebSocket') &&
+              reason.message.includes('localhost:undefined')) {
+            console.warn('[Cafe] Ignoring Vite HMR WebSocket error in remote mode');
+            event.preventDefault();
+            return;
+          }
+
           var message = reason instanceof Error
             ? reason.message + (reason.stack ? '\n\nStack:\n' + reason.stack : '')
             : String(reason);

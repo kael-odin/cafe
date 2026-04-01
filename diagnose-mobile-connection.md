@@ -192,5 +192,5 @@ ngrok http 3847
 http://<LAN_URL>/?token=<密码>
 ```
 
-### 方案 3: 使用旧版 hello-halo
-如果 cafe 持续有问题，可以暂时使用原版 hello-halo
+### 方案 3: 使用旧版 hello-cafe
+如果 cafe 持续有问题，可以暂时使用原版 hello-cafe

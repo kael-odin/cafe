@@ -1,28 +1,29 @@
 /**
  * Streamdown plugin configuration (lazy-loaded)
  *
- * Loads @streamdown/code (Shiki) asynchronously to avoid blocking
- * the module graph in Vite dev mode. The plugin initializes on first
- * use and caches the result for subsequent renders.
+ * Uses static import for @streamdown/code to ensure it's bundled properly.
+ * The plugin initializes on first use and caches the result.
  */
 
 import { useState, useEffect } from 'react'
 import type { CodeHighlighterPlugin } from 'streamdown'
+// Static import to ensure proper bundling
+import { createCodePlugin } from '@streamdown/code'
 
 let cachedPlugin: CodeHighlighterPlugin | null = null
 let loadPromise: Promise<CodeHighlighterPlugin> | null = null
 
 function loadCodePlugin(): Promise<CodeHighlighterPlugin> {
   if (!loadPromise) {
-    loadPromise = import('@streamdown/code').then(m => {
+    loadPromise = new Promise((resolve) => {
       // Dark theme first: inline `color` uses the first theme's values,
       // which must be readable on dark backgrounds (our default).
       // The second theme goes into --shiki-dark CSS var for light mode.
-      const plugin = m.createCodePlugin({
+      const plugin = createCodePlugin({
         themes: ['github-dark', 'github-light'],
       })
       cachedPlugin = plugin
-      return plugin
+      resolve(plugin)
     })
   }
   return loadPromise

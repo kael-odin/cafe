@@ -134,7 +134,7 @@ export function getRemoteServerUrl(): string {
 /** Get stored auth token */
 export function getAuthToken(): string | null {
   try {
-    return localStorage.getItem('halo_remote_token')
+    return localStorage.getItem('cafe_remote_token')
   } catch {
     return null
   }
@@ -143,14 +143,14 @@ export function getAuthToken(): string | null {
 /** Set auth token */
 export function setAuthToken(token: string): void {
   try {
-    localStorage.setItem('halo_remote_token', token)
+    localStorage.setItem('cafe_remote_token', token)
   } catch { /* ignore */ }
 }
 
 /** Clear auth token */
 export function clearAuthToken(): void {
   try {
-    localStorage.removeItem('halo_remote_token')
+    localStorage.removeItem('cafe_remote_token')
   } catch { /* ignore */ }
 }
 
@@ -206,12 +206,11 @@ export async function httpRequest<T>(
       if (isCapacitor()) {
         // In Capacitor: dispatch DOM event so App.tsx can navigate to ServerConnect
         // Do NOT reload — there is no server-rendered login page
-        window.dispatchEvent(new CustomEvent('halo:auth-expired'))
+        window.dispatchEvent(new CustomEvent('cafe:auth-expired'))
       } else {
-        // Remote browser: dispatch event instead of reload to avoid infinite loop
-        // The server has already authenticated the user via the login endpoint
-        console.warn('[HTTP] Remote mode: auth token invalid, dispatching auth-expired event')
-        window.dispatchEvent(new CustomEvent('halo:auth-expired'))
+        // Remote browser: reload → server shows login page
+        document.cookie = 'Cafe_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+        window.location.reload()
       }
 
       return { success: false, error: 'Token expired, please login again' }

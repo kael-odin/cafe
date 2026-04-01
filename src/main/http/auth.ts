@@ -94,6 +94,7 @@ export function authMiddleware(
     req.path.endsWith('.woff') ||
     req.path.endsWith('.woff2') ||
     req.path.includes('@vite') ||
+    req.path.includes('@fs') ||  // Vite file system access
     req.path.includes('node_modules')
   ) {
     return next()

@@ -3,7 +3,7 @@
  *
  * Manages all known IM channel sessions across digital humans (Apps).
  * Sessions are automatically registered when a user messages the bot,
- * and the `proactive` flag is toggled by the user in Halo's settings UI.
+ * and the `proactive` flag is toggled by the user in Cafe's settings UI.
  *
  * Persistence: JSON file on disk, loaded at startup, written on every mutation.
  * Data volume is small (a few to tens of sessions per app), so full-file
@@ -103,7 +103,7 @@ export class ImSessionRegistry {
 
   /**
    * Set the proactive flag for a session.
-   * Called by the user via Halo settings UI.
+   * Called by the user via Cafe settings UI.
    *
    * @returns true if the session was found and updated
    */

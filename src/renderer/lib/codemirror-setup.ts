@@ -57,7 +57,7 @@ import { php } from '@codemirror/lang-php'
 import { vue } from '@codemirror/lang-vue'
 import { svelte } from '@replit/codemirror-lang-svelte'
 import { StreamLanguage } from '@codemirror/language'
-import { CafeTheme } from './codemirror-theme'
+import { cafeTheme } from './codemirror-theme'
 
 // Legacy mode languages (for less common languages)
 import { shell } from '@codemirror/legacy-modes/mode/shell'
@@ -430,7 +430,7 @@ export function createEditorState(options: CreateEditorStateOptions): EditorStat
       // Compartmentalized configurations
       readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
       languageCompartment.of(languageExt || []),
-      themeCompartment.of(CafeTheme), // Always use CafeTheme
+      themeCompartment.of(cafeTheme), // Always use cafeTheme
 
       // Additional extensions
       ...extensions,

@@ -227,26 +227,20 @@ export default function App() {
     }
   }, [])
 
-  // Handle auth-expired event (remote mode and Capacitor)
+  // Capacitor: listen for auth-expired DOM events (from transport.ts 401 handler)
   useEffect(() => {
-    if (!api.isRemoteMode() && !api.isCapacitorMode()) return
+    if (!api.isCapacitorMode()) return
 
     const handleAuthExpired = () => {
-      console.log('[App] Auth token expired, redirecting to server list/connect')
-      api.logout()
-      
-      if (api.isCapacitorMode()) {
-        setView('serverList')
-      } else {
-        // Remote browser: redirect to server connect page
-        // For now, just reload to show the login page from server
-        // This is safe because the server will handle the login flow
-        window.location.reload()
-      }
+      console.log('[App] Auth expired, navigating to server list')
+      api.disconnectWebSocket()
+      useServerStore.getState().clearActive()
+      const { servers } = useServerStore.getState()
+      setView(servers.length > 0 ? 'serverList' : 'serverConnect')
     }
 
-    window.addEventListener('halo:auth-expired', handleAuthExpired)
-    return () => window.removeEventListener('halo:auth-expired', handleAuthExpired)
+    window.addEventListener('cafe:auth-expired', handleAuthExpired)
+    return () => window.removeEventListener('cafe:auth-expired', handleAuthExpired)
   }, [setView])
 
   // WebSocket state listener for remote/capacitor mode
