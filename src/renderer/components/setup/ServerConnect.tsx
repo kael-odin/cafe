@@ -47,12 +47,18 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
   // Tracks whether the component is still mounted; prevents setState calls
   // on an already-unmounted component after async QR operations complete.
   const mountedRef = useRef(true)
+  // Timeout ID for connection operations
+  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cleanup QR scanner on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false
       stopScanner()
+      // Clear any pending connection timeout
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current)
+      }
     }
   }, [])
 
