@@ -19,6 +19,7 @@ import { resolveSpecI18n } from '../../utils/spec-i18n'
 import { resolvePermission } from '../../../shared/apps/app-types'
 import { api } from '../../api'
 import type { BrowserLoginEntry } from '../../../shared/apps/spec-types'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 // Brand-aligned palette for boring-avatars
 const AVATAR_COLORS = ['#84B9EF', '#6C8EBF', '#3D5A80', '#98C1D9', '#E0FBFC']
@@ -50,6 +51,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
   const { openAppConfig, openAppChat, openActivityThread, detailView } = useAppsPageStore()
   const app = apps.find(a => a.id === appId)
   const runtimeState = appStates[appId]
+  const isMobile = useIsMobile()
 
   // Browser popover state
   const [showBrowserPopover, setShowBrowserPopover] = useState(false)
@@ -153,11 +155,11 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
   return (
     <div className="flex-shrink-0 border-b border-border">
       {/* ── Persona Card ── */}
-      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+      <div className={`flex items-start gap-3 px-4 pt-4 pb-3 ${isMobile ? 'flex-wrap' : ''}`}>
         {/* Avatar */}
         <div className="flex-shrink-0 rounded-xl overflow-hidden">
           <Avatar
-            size={44}
+            size={isMobile ? 40 : 44}
             name={name || appId}
             variant="beam"
             colors={AVATAR_COLORS}
@@ -167,7 +169,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
         {/* Info */}
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-foreground truncate leading-tight">{name}</h2>
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className={`flex items-center gap-1.5 mt-0.5 ${isMobile ? 'flex-wrap' : ''}`}>
             <AppStatusDot status={status} runtimeStatus={runtimeStatus} size="sm" />
             <span className="text-xs text-muted-foreground">
               {statusLabel(effectiveStatus, t)}
@@ -186,7 +188,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
 
         {/* Action buttons */}
         {isAutomation && (
-          <div className="flex items-center gap-0.5 flex-shrink-0">
+          <div className={`flex items-center gap-0.5 flex-shrink-0 ${isMobile ? 'w-full mt-2 justify-end' : ''}`}>
             {/* Trigger now */}
             {!isPaused && !isWaiting && (
               <button
@@ -260,7 +262,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
 
       {/* ── Tab Bar ── */}
       {isAutomation && (
-        <div className="flex items-center gap-0.5 px-4">
+        <div className={`flex items-center gap-0.5 px-4 ${isMobile ? 'overflow-x-auto' : ''}`}>
           {tabs.map(tab => {
             const Icon = tab.icon
             const isActive = currentTab === tab.key
@@ -268,7 +270,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
               <button
                 key={tab.key}
                 onClick={tab.onClick}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
                   isActive
                     ? 'text-foreground border-foreground'
                     : 'text-muted-foreground border-transparent hover:text-foreground hover:border-border'

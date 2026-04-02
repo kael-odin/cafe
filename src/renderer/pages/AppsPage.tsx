@@ -1,13 +1,9 @@
-﻿/**
+/**
  * Apps Page
  *
  * Top-level page for the Apps system. Accessible from SpacePage header.
  * Layout: Header + tab bar + split pane (app list sidebar | detail area).
- *
- * Session Detail drill-down:
- * When viewing a run's execution trace, a breadcrumb bar replaces the
- * AutomationHeader. Clicking the app name in the breadcrumb returns to
- * the Activity Thread without losing left-sidebar selection.
+ * Mobile: Full-screen detail view with swipe-back gesture.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -38,7 +34,9 @@ import { canvasLifecycle } from '../services/canvas-lifecycle'
 import { useTranslation, getCurrentLanguage } from '../i18n'
 import { resolveSpecI18n } from '../utils/spec-i18n'
 import { api } from '../api'
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, ArrowLeft } from 'lucide-react'
+import { useIsMobile } from '../hooks/useIsMobile'
+import { useSwipeBack } from '../hooks/useSwipeBack'
 
 export function AppsPage(): JSX.Element {
   const { t } = useTranslation()
@@ -63,6 +61,12 @@ export function AppsPage(): JSX.Element {
 
   const [showManualAddDialog, setShowManualAddDialog] = useState(false)
   const [showSkillInstallDialog, setShowSkillInstallDialog] = useState(false)
+  const isMobile = useIsMobile()
+
+  const handleBack = () => {
+    setView(currentSpace ? 'space' : (previousView ?? 'home'))
+  }
+  const { bind: bindSwipeBack } = useSwipeBack(handleBack)
 
   /** Types that belong to the "My Apps" tab */
   const NON_AUTOMATION_TYPES = useMemo(() => new Set(['mcp', 'skill', 'extension']), [])
@@ -220,25 +224,27 @@ export function AppsPage(): JSX.Element {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background app-shell">
+    <div className="h-full flex flex-col bg-background app-shell" {...(isMobile ? bindSwipeBack() : {})}>
       {/* Header */}
       <Header
         left={
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
-              onClick={() => setView(currentSpace ? 'space' : (previousView ?? 'home'))}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-1"
+              onClick={handleBack}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 -ml-2 rounded-lg hover:bg-secondary/50"
             >
-              <ChevronLeft className="w-4 h-4" />
-              {currentSpace?.name ?? t('Back')}
+              {isMobile ? <ArrowLeft className="w-5 h-5" /> : <ChevronLeft className="w-4 h-4" />}
+              {!isMobile && (currentSpace?.name ?? t('Back'))}
             </button>
-            <div className="h-5 w-px bg-border/70" />
+            {!isMobile && <div className="h-5 w-px bg-border/70" />}
             <div className="flex items-center gap-2 min-w-0">
               <CafeLogo size={26} animated={false} />
-              <div className="flex flex-col leading-none min-w-0">
-                <span className="text-sm font-semibold truncate">{t('Apps')}</span>
-                <span className="text-[11px] text-muted-foreground/80 truncate">{t('Digital humans, MCP, skills, and store')}</span>
-              </div>
+              {!isMobile && (
+                <div className="flex flex-col leading-none min-w-0">
+                  <span className="text-sm font-semibold truncate">{t('Apps')}</span>
+                  <span className="text-[11px] text-muted-foreground/80 truncate">{t('Digital humans, MCP, skills, and store')}</span>
+                </div>
+              )}
             </div>
           </div>
         }
@@ -254,38 +260,44 @@ export function AppsPage(): JSX.Element {
       />
 
       {/* Tab bar */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/70 flex-shrink-0 bg-background/60 backdrop-blur relative overflow-hidden">
-        <div className="flex items-center gap-1">
-        <button
-          onClick={() => setCurrentTab('my-digital-humans')}
-          className={`px-3 py-1.5 text-sm rounded-xl transition-colors ${
-            currentTab === 'my-digital-humans'
-              ? 'toolbar-chip toolbar-chip-active text-foreground font-medium'
-              : 'toolbar-chip text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {t('My Digital Humans')}
-        </button>
-        <button
-          onClick={() => setCurrentTab('my-apps')}
-          className={`px-3 py-1.5 text-sm rounded-xl transition-colors ${
-            currentTab === 'my-apps'
-              ? 'toolbar-chip toolbar-chip-active text-foreground font-medium'
-              : 'toolbar-chip text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {t('My Apps')}
-        </button>
-        <button
-          onClick={() => setCurrentTab('store')}
-          className={`px-3 py-1.5 text-sm rounded-xl transition-colors ${
-            currentTab === 'store'
-              ? 'toolbar-chip toolbar-chip-active text-foreground font-medium'
-              : 'toolbar-chip text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {t('App Store')}
-        </button>
+      <div 
+        className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/70 flex-shrink-0 bg-background/60 backdrop-blur relative overflow-x-auto"
+        style={{
+          paddingLeft: 'max(env(safe-area-inset-left), 1rem)',
+          paddingRight: 'max(env(safe-area-inset-right), 1rem)',
+        }}
+      >
+        <div className="flex items-center gap-1 flex-1">
+          <button
+            onClick={() => setCurrentTab('my-digital-humans')}
+            className={`px-3 py-1.5 text-sm rounded-xl transition-colors whitespace-nowrap ${
+              currentTab === 'my-digital-humans'
+                ? 'toolbar-chip toolbar-chip-active text-foreground font-medium'
+                : 'toolbar-chip text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t('My Digital Humans')}
+          </button>
+          <button
+            onClick={() => setCurrentTab('my-apps')}
+            className={`px-3 py-1.5 text-sm rounded-xl transition-colors whitespace-nowrap ${
+              currentTab === 'my-apps'
+                ? 'toolbar-chip toolbar-chip-active text-foreground font-medium'
+                : 'toolbar-chip text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t('My Apps')}
+          </button>
+          <button
+            onClick={() => setCurrentTab('store')}
+            className={`px-3 py-1.5 text-sm rounded-xl transition-colors whitespace-nowrap ${
+              currentTab === 'store'
+                ? 'toolbar-chip toolbar-chip-active text-foreground font-medium'
+                : 'toolbar-chip text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t('App Store')}
+          </button>
         </div>
 
         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
@@ -300,26 +312,48 @@ export function AppsPage(): JSX.Element {
       ) : (
         /* Split layout: left sidebar + right detail (shared by both tabs) */
         <div className="flex-1 flex overflow-hidden p-3 gap-3">
-          {/* Left: App list (fixed 240px width) */}
-          <div className="w-64 flex-shrink-0 panel-glass section-frame rounded-[1.5rem] overflow-hidden">
-            {currentTab === 'my-apps' ? (
-              <AppList
-                mode="apps"
-                onInstall={() => setCurrentTab('store')}
-                onManualAdd={() => setShowManualAddDialog(true)}
-                spaceMap={spaceMap}
-              />
-            ) : (
-              <AppList
-                mode="automation"
-                onInstall={() => setShowInstallDialog(true)}
-                spaceMap={spaceMap}
-              />
-            )}
-          </div>
+          {/* Left: App list - hidden on mobile when detail is shown */}
+          {(!isMobile || !selectedAppId) && (
+            <div className={`${isMobile ? 'flex-1' : 'w-64 flex-shrink-0'} panel-glass section-frame rounded-[1.5rem] overflow-hidden`}>
+              {currentTab === 'my-apps' ? (
+                <AppList
+                  mode="apps"
+                  onInstall={() => setCurrentTab('store')}
+                  onManualAdd={() => setShowManualAddDialog(true)}
+                  spaceMap={spaceMap}
+                />
+              ) : (
+                <AppList
+                  mode="automation"
+                  onInstall={() => setShowInstallDialog(true)}
+                  spaceMap={spaceMap}
+                />
+              )}
+            </div>
+          )}
 
-          {/* Right: Detail panel */}
-            <div className="flex-1 flex flex-col overflow-hidden panel-glass section-frame rounded-[1.5rem]">
+          {/* Right: Detail panel - full screen on mobile */}
+          {(!isMobile || selectedAppId) && (
+            <div className={`flex-1 flex flex-col overflow-hidden panel-glass section-frame rounded-[1.5rem] ${isMobile && selectedAppId ? 'fixed inset-0 z-40 bg-background' : ''}`}>
+              {/* Mobile back button for detail view */}
+              {isMobile && selectedAppId && (
+                <div 
+                  className="flex items-center gap-2 px-4 py-3 border-b border-border/70 bg-background/80 backdrop-blur flex-shrink-0"
+                  style={{
+                    paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+                    paddingLeft: 'max(env(safe-area-inset-left), 1rem)',
+                    paddingRight: 'max(env(safe-area-inset-right), 1rem)',
+                  }}
+                >
+                  <button
+                    onClick={clearSelection}
+                    className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                    <span>{t('Back')}</span>
+                  </button>
+                </div>
+              )}
               {/* Session detail breadcrumb — replaces AutomationHeader when drilling into a specific run */}
               {isSessionDetail && selectedApp && (
               <SessionBreadcrumb
@@ -361,6 +395,7 @@ export function AppsPage(): JSX.Element {
                 )}
               </div>
             </div>
+          )}
           </div>
         )}
 

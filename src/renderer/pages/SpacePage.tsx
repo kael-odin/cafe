@@ -1,16 +1,11 @@
-﻿/**
+/**
  * Space Page - Chat interface with artifact rail and content canvas
  * Supports multi-conversation with isolated session states per space
  *
  * Layout modes:
  * - Chat mode: Full-width chat view (when no canvas tabs open)
  * - Canvas mode: Split view with narrower chat + content canvas
- * - Mobile mode: Full-screen panels with overlay canvas
- *
- * Layout preferences:
- * - Artifact Rail expansion state (persisted per space)
- * - Chat width when canvas is open (persisted per space)
- * - Maximized mode overrides (temporary)
+ * - Mobile mode: Full-screen panels with overlay canvas and swipe-back
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react'
@@ -33,11 +28,12 @@ import { GitBashWarningBanner } from '../components/setup/GitBashWarningBanner'
 import { api } from '../api'
 import { useLayoutPreferences } from '../hooks/useLayoutPreferences'
 import { useWindowMaximize } from '../components/canvas/viewers/useWindowMaximize'
-import { X, MessageSquare } from 'lucide-react'
+import { X, MessageSquare, ArrowLeft } from 'lucide-react'
 import { SearchIcon } from '../components/search/SearchIcon'
 import { useSearchShortcuts } from '../hooks/useSearchShortcuts'
 import { useTranslation } from '../i18n'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useSwipeBack } from '../hooks/useSwipeBack'
 import type { LayoutConfig } from '../types'
 
 /** Persist a partial layout update to backend config + sync in-memory store */
@@ -94,6 +90,12 @@ export function SpacePage(): JSX.Element {
 
   // Mobile detection
   const isMobile = useIsMobile()
+
+  // Swipe back gesture for mobile
+  const handleBackToHome = useCallback(() => {
+    setView('home')
+  }, [setView])
+  const { bind: bindSwipeBack } = useSwipeBack(handleBackToHome)
 
   // Window maximize state
   const { isMaximized } = useWindowMaximize()
@@ -307,7 +309,7 @@ export function SpacePage(): JSX.Element {
   }
 
   return (
-    <div className="h-full w-full flex flex-col app-shell">
+    <div className="h-full w-full flex flex-col app-shell" {...(isMobile ? bindSwipeBack() : {})}>
       {/*
         ChatCapsule overlay is now managed via IPC to render above BrowserView.
         The overlay SPA is a separate WebContentsView that appears above all views.
@@ -326,12 +328,14 @@ export function SpacePage(): JSX.Element {
           <>
             {/* Back button */}
             <button
-              onClick={() => setView('home')}
-                className="p-2 hover:bg-secondary rounded-xl transition-colors surface-subtle"
+              onClick={handleBackToHome}
+              className="p-2 hover:bg-secondary rounded-xl transition-colors surface-subtle"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              {isMobile ? <ArrowLeft className="w-5 h-5" /> : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              )}
             </button>
 
             {/* Space Selector - dropdown for switching spaces (includes icon + name + back) */}
@@ -350,7 +354,7 @@ export function SpacePage(): JSX.Element {
             {/* New conversation button */}
             <button
               onClick={handleNewConversation}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm panel-glass hover:border-primary/30 rounded-xl transition-colors surface-subtle"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm panel-glass hover:border-primary/30 rounded-xl transition-colors surface-subtle"
               title={t('New conversation')}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

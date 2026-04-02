@@ -14,6 +14,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Wifi, QrCode, ArrowRight, Loader2, AlertCircle, X, Server, ArrowLeft } from 'lucide-react'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
+import { CafeLogo } from '../brand/CafeLogo'
 
 /** Info returned to the caller after a successful connection */
 export interface ServerAddedInfo {
@@ -390,9 +391,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
 
         {/* Logo / Brand */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/40 flex items-center justify-center mb-4 cafe-breathe">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20" />
-          </div>
+          <CafeLogo size={72} className="mb-4" />
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
             Cafe
           </h1>

@@ -64,6 +64,7 @@ function isVirtualInterface(name: string): boolean {
     /^singbox/i,
     /^sing-box/i,
     /^clash/i,
+    /^meta$/i,
     /^utun/i,
     /^tailscale/i,
     /^Tailscale/i,
@@ -75,6 +76,8 @@ function isVirtualInterface(name: string): boolean {
     /^Hamachi/i,
     /^npcap/i,
     /^lo/i,
+    /^蓝牙/i,
+    /^Bluetooth/i,
   ]
   return virtualPatterns.some((pattern) => pattern.test(name))
 }

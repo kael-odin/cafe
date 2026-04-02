@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Settings Page - App configuration
  * Modular design with left sidebar navigation and right content area
  */
@@ -12,6 +12,7 @@ import { CafeLogo } from '../components/brand/CafeLogo'
 import { Header } from '../components/layout/Header'
 import { useTranslation } from '../i18n'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useSwipeBack } from '../hooks/useSwipeBack'
 
 // Import modular settings components
 import {
@@ -44,12 +45,15 @@ export function SettingsPage(): JSX.Element {
   }, [])
 
   // Handle back - return to previous view
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     goBack()
-  }
+  }, [goBack])
+
+  // Swipe back gesture for mobile
+  const { bind: bindSwipeBack } = useSwipeBack(handleBack)
 
   return (
-    <div className="h-full w-full flex flex-col app-shell">
+    <div className="h-full w-full flex flex-col app-shell" {...(isMobile ? bindSwipeBack() : {})}>
       {/* Header */}
       <Header
         left={

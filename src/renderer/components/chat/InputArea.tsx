@@ -31,6 +31,8 @@ import type { ImageAttachment, Artifact } from '../../types'
 import { useTranslation } from '../../i18n'
 import { SlashCommandMenu, filterSlashCommands } from './SlashCommandMenu'
 import type { SlashCommandItem } from '../../types/slash-command'
+import { isElectron } from '../../api/transport'
+import { useKeyboard } from '../../hooks/useKeyboard'
 
 // ── @ mention helpers ──
 
@@ -120,6 +122,9 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // AI Browser state
   const { enabled: aiBrowserEnabled, setEnabled: setAIBrowserEnabled } = useAIBrowserStore()
+
+  // Keyboard handling for mobile
+  const { keyboardHeight, isKeyboardVisible } = useKeyboard()
 
   // Auto-clear error after 3 seconds
   useEffect(() => {
@@ -555,12 +560,24 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const canSend = isOnboardingSendStep || ((content.trim().length > 0 || images.length > 0) && !isGenerating && !isProcessingImages)
   const hasImages = images.length > 0
 
+  const isInElectron = isElectron()
+  const mobileSafePadding = !isInElectron
+    ? {
+        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'max(env(safe-area-inset-left), 1rem)',
+        paddingRight: 'max(env(safe-area-inset-right), 1rem)',
+      }
+    : undefined
+
   return (
-    <div className={`
-      border-t border-border/50 bg-background/40 backdrop-blur
-      transition-[padding] duration-300 ease-out
-      ${isCompact ? 'px-3 py-2' : 'px-4 py-3'}
-    `}>
+    <div
+      className={`
+        border-t border-border/50 bg-background/40 backdrop-blur
+        transition-[padding] duration-300 ease-out
+        ${isCompact ? 'py-2' : 'py-3'}
+      `}
+      style={mobileSafePadding}
+    >
       <div className={isCompact ? '' : 'max-w-3xl mx-auto'}>
         {/* Error toast notification */}
         {imageError && (

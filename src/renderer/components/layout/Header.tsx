@@ -12,6 +12,7 @@
 
 import { ReactNode } from 'react'
 import { isElectron } from '../../api/transport'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 interface HeaderProps {
   /** Left side content (after platform padding) */
@@ -22,12 +23,10 @@ interface HeaderProps {
   className?: string
 }
 
-// Get platform info with fallback for SSR/browser
 const getPlatform = () => {
   if (typeof window !== 'undefined' && window.platform) {
     return window.platform
   }
-  // Fallback for non-Electron environments (e.g., remote web access)
   return {
     platform: 'darwin' as const,
     isMac: true,
@@ -39,46 +38,41 @@ const getPlatform = () => {
 export function Header({ left, right, className = '' }: HeaderProps) {
   const platform = getPlatform()
   const isInElectron = isElectron()
+  const isMobile = useIsMobile()
 
-  // Platform-specific padding classes
-  // macOS: traffic lights overlay on the left
-  // Windows/Linux: titleBarOverlay buttons overlay on the right
-  // Browser/Mobile: no overlay, use normal padding
   const platformPadding = isInElectron
     ? platform.isMac
-      ? 'pl-20 pr-4'   // Electron macOS: 80px left for traffic lights
-      : 'pl-4 pr-36'   // Electron Windows/Linux: 140px right for titleBarOverlay buttons
-    : 'pl-4 pr-4'      // Browser/Mobile: normal padding
+      ? 'pl-20 pr-4'
+      : 'pl-4 pr-36'
+    : 'pl-4 pr-4'
 
-  const mobileSafePadding = !isInElectron
+  const mobileSafeStyle = !isInElectron
     ? {
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
         paddingLeft: 'max(env(safe-area-inset-left), 1rem)',
         paddingRight: 'max(env(safe-area-inset-right), 1rem)',
+        minHeight: isMobile ? 'calc(3rem + env(safe-area-inset-top, 0px))' : '3rem',
       }
     : undefined
 
-  // Header height: 40px, trafficLightPosition.y should be 40/2 - 7 = 13
   return (
     <header
       className={`
-        relative z-40 flex items-center justify-between h-12
+        relative z-40 flex items-center justify-between
         border-b border-border/70 drag-region glass-header
         ${platformPadding}
         ${className}
       `.trim().replace(/\s+/g, ' ')}
-      style={mobileSafePadding}
+      style={mobileSafeStyle}
     >
-      {/* Left side: Interactive elements need no-drag to allow clicks */}
       <div className="relative z-10 flex items-center gap-2 sm:gap-3 min-w-0">
         <div className="no-drag flex items-center gap-2 sm:gap-3">
           {left}
         </div>
       </div>
 
-      {/* Center: Draggable area - grows to fill space */}
       <div className="flex-1 min-w-[100px]" />
 
-      {/* Right side: Interactive elements need no-drag to allow clicks */}
       <div className="relative z-10 flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <div className="no-drag flex items-center gap-1 sm:gap-2">
           {right}
@@ -88,7 +82,6 @@ export function Header({ left, right, className = '' }: HeaderProps) {
   )
 }
 
-// Export platform detection hook for use in other components
 export function usePlatform() {
   return getPlatform()
 }

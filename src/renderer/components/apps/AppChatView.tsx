@@ -28,6 +28,7 @@ import { AskUserQuestionCard } from '../chat/AskUserQuestionCard'
 import { InterruptedBubble } from '../chat/InterruptedBubble'
 import { CompactNotice } from '../chat/CompactNotice'
 import { InputArea } from '../chat/InputArea'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { useTranslation } from '../../i18n'
 import type { Message, Thought, ImageAttachment } from '../../types'
 
@@ -48,7 +49,7 @@ function getConversationId(appId: string): string {
 
 type LoadState = 'loading' | 'loaded' | 'error' | 'empty'
 
-const PersistedMessages = memo(function PersistedMessages({ messages }: { messages: Message[] }): JSX.Element {
+const PersistedMessages = memo(function PersistedMessages({ messages, isMobile }: { messages: Message[]; isMobile: boolean }): JSX.Element {
   return (
     <>
       {messages.map((message) => {
@@ -57,7 +58,7 @@ const PersistedMessages = memo(function PersistedMessages({ messages }: { messag
         if (message.role === 'assistant' && hasInlineThoughts) {
           return (
             <div key={message.id} className="flex justify-start pb-4 message-scroll-shell">
-              <div className="w-[85%]">
+              <div className={isMobile ? 'w-[95%]' : 'w-[85%]'}>
                 <CollapsedThoughtProcess
                   thoughts={message.thoughts as Thought[]}
                   defaultExpanded={false}
@@ -87,6 +88,7 @@ const PersistedMessages = memo(function PersistedMessages({ messages }: { messag
 export function AppChatView({ appId, spaceId }: AppChatViewProps): JSX.Element {
   const { t } = useTranslation()
   const conversationId = getConversationId(appId)
+  const isMobile = useIsMobile()
 
   // ── Persisted messages ──
   const [messages, setMessages] = useState<Message[]>([])
@@ -318,12 +320,12 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps): JSX.Element {
           )}
 
           {/* Persisted messages */}
-          <PersistedMessages messages={messages} />
+          <PersistedMessages messages={messages} isMobile={isMobile} />
 
           {/* Live streaming content */}
           {hasStreamingContent && (
             <div className="flex justify-start pb-4 message-scroll-shell">
-              <div className="w-[85%]">
+              <div className={isMobile ? 'w-[95%]' : 'w-[85%]'}>
                 {/* Real-time thought process */}
                 {(thoughts.length > 0 || isThinking) && (
                   <ThoughtProcess thoughts={thoughts} isThinking={isThinking} />
@@ -368,7 +370,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps): JSX.Element {
           {/* Generic error */}
           {!isGenerating && error && errorType !== 'interrupted' && (
             <div className="flex justify-start pb-4 message-scroll-shell">
-              <div className="w-[85%]">
+              <div className={isMobile ? 'w-[95%]' : 'w-[85%]'}>
                 <div className="rounded-2xl px-4 py-3 bg-destructive/10 border border-destructive/30">
                   <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="w-4 h-4" />

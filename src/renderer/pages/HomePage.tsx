@@ -242,7 +242,7 @@ export function HomePage() {
                 {t('把 AI、工具与项目空间，放进一间克制而有辨识度的猫咪咖啡馆。')}
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground/90">
-                {t('以深墨灰为底、樱花与雾蓝为点缀，把对话、Browser、MCP、Skills 与 Workspace 收拢到同一张工作台。')}
+                {t('把对话、Browser、MCP、Skills 与 Workspace 收拢到同一张工作台。')}
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span className="pill-stat rounded-full px-3 py-1.5">{t('Agent Workspace')}</span>
