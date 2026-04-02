@@ -96,7 +96,7 @@ interface ImageError {
   message: string
 }
 
-export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false, slashCommands = [], mentionArtifacts = [], ensureMentionArtifacts }: InputAreaProps) {
+export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false, slashCommands = [], mentionArtifacts = [], ensureMentionArtifacts }: InputAreaProps): JSX.Element {
   const { t } = useTranslation()
   const sendKeyMode = useAppStore(state => state.config?.chat?.sendKeyMode ?? 'enter')
   const [content, setContent] = useState('')
@@ -578,7 +578,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
           accept="image/jpeg,image/png,image/gif,image/webp"
           multiple
           className="hidden"
-          onChange={handleFileInputChange}
+          onChange={(e) => { void handleFileInputChange(e) }}
         />
 
         {/* Input container */}
@@ -594,7 +594,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
           `}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          onDrop={(e) => { void handleDrop(e) }}
         >
           {/* Slash-command autocomplete menu — floats above the input box.
               Only rendered when there are actual matches; no empty-state UI. */}
@@ -709,7 +709,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
               }}
               onSelect={(e) => setCursorPos((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
               onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
+              onPaste={(e) => { void handlePaste(e) }}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               placeholder={placeholder || t('Type a message, let Cafe help you...')}

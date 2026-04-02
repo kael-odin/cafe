@@ -34,7 +34,7 @@ interface ChatViewProps {
   isCompact?: boolean
 }
 
-export function ChatView({ isCompact = false }: ChatViewProps) {
+export function ChatView({ isCompact = false }: ChatViewProps): JSX.Element {
   const { t } = useTranslation()
   const { currentSpace } = useSpaceStore()
   const {
@@ -119,14 +119,12 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
       const customEvent = event as CustomEvent<{ messageId: string; query: string }>
       const { messageId, query } = customEvent.detail
 
-      console.log(`[ChatView] Attempting to navigate to message: ${messageId}`)
-
       // Remove previous highlights from all messages
       document.querySelectorAll('.search-highlight').forEach(el => {
         el.classList.remove('search-highlight')
       })
       document.querySelectorAll('.search-term-highlight').forEach(el => {
-        const textNode = document.createTextNode(el.textContent || '')
+        const textNode = document.createTextNode(el.textContent ?? '')
         el.replaceWith(textNode)
       })
 
@@ -152,8 +150,6 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
           return
         }
 
-        console.log(`[ChatView] Found message element, highlighting`)
-
         // Add highlight animation
         messageElement.classList.add('search-highlight')
         setTimeout(() => {
@@ -172,7 +168,6 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
                 regex,
                 '<mark class="search-term-highlight bg-yellow-400/30 font-semibold rounded px-0.5">$1</mark>'
               )
-              console.log(`[ChatView] Highlighted search term: "${query}"`)
             }
           } catch (error) {
             console.error(`[ChatView] Error highlighting search term:`, error)
@@ -186,12 +181,11 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
 
     // Clear all search highlights when requested
     const handleClearHighlights = () => {
-      console.log(`[ChatView] Clearing all search highlights`)
       document.querySelectorAll('.search-highlight').forEach(el => {
         el.classList.remove('search-highlight')
       })
       document.querySelectorAll('.search-term-highlight').forEach(el => {
-        const textNode = document.createTextNode(el.textContent || '')
+        const textNode = document.createTextNode(el.textContent ?? '')
         el.replaceWith(textNode)
       })
     }
@@ -301,7 +295,7 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   const { enabled: aiBrowserEnabled } = useAIBrowserStore()
 
   // Handle send (with optional images for multi-modal messages, optional thinking mode)
-  const handleSend = async (content: string, images?: ImageAttachment[], thinkingEnabled?: boolean) => {
+  const handleSend = (content: string, images?: ImageAttachment[], thinkingEnabled?: boolean): void => {
     // In onboarding mode, intercept and play mock response
     if (isOnboarding && currentStep === 'send-message') {
       void handleOnboardingSend()
@@ -312,18 +306,18 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
     if ((!content.trim() && (!images || images.length === 0)) || isGenerating) return
 
     // Pass both AI Browser and thinking state to sendMessage
-    await sendMessage(content, images, aiBrowserEnabled, thinkingEnabled)
+    void sendMessage(content, images, aiBrowserEnabled, thinkingEnabled)
   }
 
   // Handle stop - stops the current conversation's generation
-  const handleStop = async () => {
+  const handleStop = (): void => {
     if (currentConversation) {
-      await stopGeneration(currentConversation.id)
+      void stopGeneration(currentConversation.id)
     }
   }
 
   // Combine real messages with mock onboarding messages
-  const realMessages = currentConversation?.messages || []
+  const realMessages = currentConversation?.messages ?? []
   const displayMessages = mockUserMessage
     ? [
         ...realMessages,
@@ -377,7 +371,7 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
           {isLoadingConversation ? (
             <LoadingState />
           ) : !hasMessages ? (
-            <EmptyState isTemp={currentSpace?.isTemp || false} isCompact={isCompact} />
+            <EmptyState isTemp={currentSpace?.isTemp ?? false} isCompact={isCompact} />
           ) : (
             <MessageList
               key={currentConversation?.id ?? 'empty'}
@@ -391,11 +385,11 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
               compactInfo={compactInfo}
               error={error}
               errorType={errorType}
-              onContinue={currentConversation ? () => continueAfterInterrupt(currentConversation.id) : undefined}
+              onContinue={currentConversation ? () => { void continueAfterInterrupt(currentConversation.id) } : undefined}
               isCompact={isCompact}
               textBlockVersion={textBlockVersion}
               pendingQuestion={pendingQuestion}
-              onAnswerQuestion={currentConversation ? (answers) => answerQuestion(currentConversation.id, answers) : undefined}
+              onAnswerQuestion={currentConversation ? (answers) => { void answerQuestion(currentConversation.id, answers) } : undefined}
               onAtBottomStateChange={handleAtBottomStateChange}
             />
           )}

@@ -95,7 +95,7 @@ export function ArtifactRail({
   onExpandedChange,
   initialWidth,
   onWidthChange
-}: ArtifactRailProps) {
+}: ArtifactRailProps): JSX.Element {
   const { t } = useTranslation()
 
   // Self-subscribe to space data
@@ -131,7 +131,7 @@ export function ArtifactRail({
 
   const handleOpenFolder = useCallback(() => {
     if (spaceId) {
-      useSpaceStore.getState().openSpaceFolder(spaceId)
+      void useSpaceStore.getState().openSpaceFolder(spaceId)
     }
   }, [spaceId])
 
@@ -212,7 +212,6 @@ export function ArtifactRail({
 
   // Handle expand/collapse toggle
   const handleToggleExpanded = useCallback(() => {
-    console.log('[ArtifactRail] 🔴 Click! isExpanded:', isExpanded, 'time:', Date.now())
     const newExpanded = !isExpanded
 
     // UI-first optimization: When Canvas is open, directly update DOM
@@ -220,7 +219,6 @@ export function ArtifactRail({
     if (isCanvasOpen && railRef.current) {
       const targetWidth = newExpanded ? width : COLLAPSED_WIDTH
       railRef.current.style.width = `${targetWidth}px`
-      console.log('[ArtifactRail] 🚀 Direct DOM update:', targetWidth, 'time:', Date.now())
     }
 
     // Then update React state (will re-render but width is already correct)
@@ -230,11 +228,6 @@ export function ArtifactRail({
       setInternalExpanded(newExpanded)
     }
   }, [isExpanded, isControlled, onExpandedChange, isCanvasOpen, width])
-
-  // Debug: log when isExpanded changes
-  useEffect(() => {
-    console.log('[ArtifactRail] 🟢 isExpanded changed to:', isExpanded, 'time:', Date.now())
-  }, [isExpanded])
 
   // Check if we're in onboarding view-artifact step
   const isOnboardingViewStep = isOnboarding && currentStep === 'view-artifact'
@@ -355,8 +348,6 @@ export function ArtifactRail({
     const cleanup = api.onArtifactChanged((event: ArtifactChangeEvent) => {
       if (event.spaceId !== spaceId) return
 
-      console.log('[ArtifactRail] Artifact changed:', event.type, event.relativePath)
-
       const normalizedArtifact = event.item
         ? normalizeArtifactFromEvent(event.item, spaceId)
         : null
@@ -370,7 +361,7 @@ export function ArtifactRail({
               return [normalizedArtifact, ...prev]
             })
           } else {
-            loadArtifacts()
+            void loadArtifacts()
           }
           break
 
@@ -385,7 +376,7 @@ export function ArtifactRail({
               prev.map(a => (a.path === normalizedArtifact.path ? normalizedArtifact : a))
             )
           } else {
-            loadArtifacts()
+            void loadArtifacts()
           }
           break
       }
@@ -405,7 +396,7 @@ export function ArtifactRail({
 
   // Handle opening browser - also collapse the rail to maximize browser area
   const handleOpenBrowser = useCallback(() => {
-    getBrowserHomepage().then(url => openUrl(url, t('Browser')))
+    void getBrowserHomepage().then(url => openUrl(url, t('Browser')))
     // Auto-collapse rail when opening browser to maximize viewing area
     if (isControlled) {
       onExpandedChange?.(false)
