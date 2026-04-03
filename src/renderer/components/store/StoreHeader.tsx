@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Search, RefreshCw } from 'lucide-react'
 import { useAppsPageStore } from '../../stores/apps-page.store'
 import { STORE_CATEGORY_META } from '../../../shared/store/store-types'
-import { CafeLogomark } from '../brand/CafeLogo'
+import { CafeLogo } from '../brand/CafeLogo'
 import { useTranslation } from '../../i18n'
 import type { AppType } from '../../../shared/apps/spec-types'
 
