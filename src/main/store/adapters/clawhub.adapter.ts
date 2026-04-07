@@ -1,15 +1,15 @@
 /**
  * ClawHub Adapter (Proxy Mode)
  *
- * Fetches from https://clawhub.io (OpenClaw official skills registry)
- * API: GET /api/skills?q=...&page=N&limit=50
- *      GET /api/skills/:owner/:repo/:slug
+ * Fetches from https://clawhub.ai (OpenClaw official skills registry)
+ * API: GET /api/v1/skills?q=...&page=N&limit=50
+ *      GET /api/v1/skills/:owner/:repo/:slug
  *
  * Features:
- * - 21,000+ skills from OpenClaw community
+ * - 48,000+ skills from OpenClaw community
  * - Official OpenClaw skills marketplace
  * - SKILL.md format compatible
- * - No auth required for public skills
+ * - Versioned like npm, rollback-ready
  *
  * Proxy strategy: queries are forwarded on demand.
  */
@@ -35,7 +35,7 @@ interface ClawHubSkill {
   stars?: number
   downloads?: number
   version?: string
-  install?: string  // "owner/repo/path/to/SKILL.md"
+  category?: string
 }
 
 interface ClawHubSearchResponse {
@@ -44,14 +44,6 @@ interface ClawHubSearchResponse {
   page: number
   totalPages: number
   hasMore: boolean
-}
-
-interface ClawHubSkillDetail {
-  name: string
-  description?: string
-  content: string  // SKILL.md content
-  author?: string
-  version?: string
 }
 
 // ── Adapter ────────────────────────────────────────────────────────────────
@@ -64,8 +56,9 @@ export class ClawHubAdapter implements RegistryAdapter {
     const limit = params.pageSize || 50
     const t0 = performance.now()
 
+    // ClawHub API format: /api/v1/skills?q=...&page=N&limit=50
     const searchQuery = params.search ?? ''
-    const url = `${baseUrl}/api/skills?q=${encodeURIComponent(searchQuery)}&page=${params.page}&limit=${limit}`
+    const url = `${baseUrl}/api/v1/skills?q=${encodeURIComponent(searchQuery)}&page=${params.page}&limit=${limit}`
 
     const response = await fetchWithTimeout(url, {
       headers: {
@@ -105,12 +98,12 @@ export class ClawHubAdapter implements RegistryAdapter {
         const owner = parts[0]
         const repo = parts[1]
         const skillPath = parts.slice(2).join('/')
-        fetchUrl = `${baseUrl}/api/skills/${owner}/${repo}/${skillPath.replace('/SKILL.md', '')}`
+        fetchUrl = `${baseUrl}/api/v1/skills/${owner}/${repo}/${skillPath.replace('/SKILL.md', '')}`
       } else {
-        fetchUrl = `${baseUrl}/api/skills/${entry.path}`
+        fetchUrl = `${baseUrl}/api/v1/skills/${entry.path}`
       }
     } else {
-      fetchUrl = `${baseUrl}/api/skills/${entry.author}/${entry.slug}`
+      fetchUrl = `${baseUrl}/api/v1/skills/${entry.author}/${entry.slug}`
     }
 
     // Fetch the skill content
@@ -127,13 +120,11 @@ export class ClawHubAdapter implements RegistryAdapter {
 
     // Try to parse as JSON first, then as markdown
     let skillContent: string
-    let skillData: ClawHubSkillDetail | null = null
-    
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
       try {
-        skillData = await response.json() as ClawHubSkillDetail
-        skillContent = skillData.content
+        const data = await response.json() as { content?: string; skill_content?: string }
+        skillContent = data.content || data.skill_content || ''
       } catch {
         skillContent = await response.text()
       }
@@ -143,11 +134,11 @@ export class ClawHubAdapter implements RegistryAdapter {
 
     const spec: SkillSpec = {
       spec_version: '1',
-      name: skillData?.name || entry.name,
+      name: entry.name,
       type: 'skill',
-      version: skillData?.version || entry.version,
-      author: skillData?.author || entry.author,
-      description: skillData?.description || entry.description,
+      version: entry.version,
+      author: entry.author,
+      description: entry.description,
       system_prompt: skillContent,
       skill_content: skillContent,
       store: {
@@ -174,20 +165,9 @@ function mapClawHubSkills(skills: ClawHubSkill[]): RegistryEntry[] {
     if (!slug || seenSlugs.has(slug)) continue
     seenSlugs.add(slug)
 
-    // Parse install path if available
-    let author = skill.author || skill.owner || 'community'
-    let repo = skill.repo || 'skills'
-    let path = skill.path || skill.install || ''
-
-    if (skill.install) {
-      // Format: "owner/repo/path/to/SKILL.md"
-      const parts = skill.install.split('/')
-      if (parts.length >= 2) {
-        author = parts[0]
-        repo = parts[1]
-        path = skill.install
-      }
-    }
+    const author = skill.author || skill.owner || 'community'
+    const repo = skill.repo || 'skills'
+    const path = skill.path || `${author}/${repo}/${slug}`
 
     apps.push({
       slug,
@@ -198,7 +178,7 @@ function mapClawHubSkills(skills: ClawHubSkill[]): RegistryEntry[] {
       type: 'skill',
       format: 'bundle',
       path,
-      category: 'other',
+      category: skill.category || 'other',
       tags: skill.tags || [],
       meta: {
         stars: skill.stars,
