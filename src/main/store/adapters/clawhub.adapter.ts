@@ -2,12 +2,15 @@
  * ClawHub Adapter (Proxy Mode)
  *
  * Fetches from https://clawhub.ai (OpenClaw official skills registry)
- * API: GET /api/v1/skills?q=...&page=N&limit=50
- *      GET /api/v1/skills/:owner/:repo/:slug
+ * API: GET /api/v1/search?q=...&limit=50
+ *      GET /api/v1/skills?limit=...&sort=newest
+ *      GET /api/v1/skills/<slug>
+ *      GET /api/v1/download/<slug>
  *
  * Features:
  * - 48,000+ skills from OpenClaw community
  * - Official OpenClaw skills marketplace
+ * - Vector-based semantic search
  * - SKILL.md format compatible
  * - Versioned like npm, rollback-ready
  *
@@ -26,24 +29,45 @@ interface ClawHubSkill {
   id: string
   slug: string
   name: string
+  summary?: string
   description?: string
   author?: string
   owner?: string
-  repo?: string
-  path?: string
   tags?: string[]
   stars?: number
   downloads?: number
+  installs?: number
+  installsAllTime?: number
   version?: string
-  category?: string
+  latestVersion?: string
+  updatedAt?: string
+  verified?: boolean
 }
 
 interface ClawHubSearchResponse {
+  results: ClawHubSkill[]
+  total: number
+  query: string
+}
+
+interface ClawHubSkillsResponse {
   skills: ClawHubSkill[]
   total: number
-  page: number
-  totalPages: number
-  hasMore: boolean
+  limit: number
+  offset: number
+}
+
+interface ClawHubSkillDetail {
+  slug: string
+  name: string
+  summary?: string
+  description?: string
+  author?: string
+  version: string
+  files: Array<{
+    path: string
+    size: number
+  }>
 }
 
 // ── Adapter ────────────────────────────────────────────────────────────────
@@ -56,9 +80,14 @@ export class ClawHubAdapter implements RegistryAdapter {
     const limit = params.pageSize || 50
     const t0 = performance.now()
 
-    // ClawHub API format: /api/v1/skills?q=...&page=N&limit=50
-    const searchQuery = params.search ?? ''
-    const url = `${baseUrl}/api/v1/skills?q=${encodeURIComponent(searchQuery)}&page=${params.page}&limit=${limit}`
+    let url: string
+    if (params.search && params.search.trim()) {
+      // Use search API for queries
+      url = `${baseUrl}/api/v1/search?q=${encodeURIComponent(params.search)}&limit=${limit}`
+    } else {
+      // Use skills list API for browsing
+      url = `${baseUrl}/api/v1/skills?limit=${limit}&sort=downloads`
+    }
 
     const response = await fetchWithTimeout(url, {
       headers: {
@@ -71,85 +100,92 @@ export class ClawHubAdapter implements RegistryAdapter {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json() as ClawHubSearchResponse
-    const items = mapClawHubSkills(data.skills ?? [])
+    const data = await response.json()
+    
+    // Handle both search and list response formats
+    const skills = data.results || data.skills || []
+    const items = mapClawHubSkills(skills)
 
     const dt = performance.now() - t0
-    console.log(`[ClawHubAdapter] query page ${params.page}/${data.totalPages || 1}: ${items.length} results (${dt.toFixed(0)}ms)`)
+    console.log(`[ClawHubAdapter] query: ${items.length} results (${dt.toFixed(0)}ms)`)
 
     return {
       items,
-      total: data.total,
-      hasMore: data.hasMore ?? (params.page < (data.totalPages || 1)),
+      total: data.total || items.length,
+      hasMore: items.length >= limit,
     }
   }
 
   async fetchSpec(source: RegistrySource, entry: RegistryEntry): Promise<AppSpec> {
     const baseUrl = source.url.replace(/\/+$/, '')
-    
-    // Construct fetch URL from entry info
-    let fetchUrl: string
-    if (entry.path?.startsWith('http')) {
-      fetchUrl = entry.path
-    } else if (entry.path) {
-      // entry.path is in format "owner/repo/path/to/SKILL.md"
-      const parts = entry.path.split('/')
-      if (parts.length >= 2) {
-        const owner = parts[0]
-        const repo = parts[1]
-        const skillPath = parts.slice(2).join('/')
-        fetchUrl = `${baseUrl}/api/v1/skills/${owner}/${repo}/${skillPath.replace('/SKILL.md', '')}`
-      } else {
-        fetchUrl = `${baseUrl}/api/v1/skills/${entry.path}`
-      }
-    } else {
-      fetchUrl = `${baseUrl}/api/v1/skills/${entry.author}/${entry.slug}`
-    }
+    const slug = entry.slug
 
-    // Fetch the skill content
-    const response = await fetchWithTimeout(fetchUrl, {
+    // Get skill metadata
+    const metaUrl = `${baseUrl}/api/v1/skills/${slug}`
+    const metaResponse = await fetchWithTimeout(metaUrl, {
       headers: {
-        'Accept': 'application/json, text/markdown',
+        'Accept': 'application/json',
         'User-Agent': 'Cafe-Store/1.0',
       },
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch skill content: HTTP ${response.status}`)
+    if (!metaResponse.ok) {
+      throw new Error(`Failed to fetch skill metadata: HTTP ${metaResponse.status}`)
     }
 
-    // Try to parse as JSON first, then as markdown
-    let skillContent: string
-    const contentType = response.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
-      try {
-        const data = await response.json() as { content?: string; skill_content?: string }
-        skillContent = data.content || data.skill_content || ''
-      } catch {
-        skillContent = await response.text()
-      }
-    } else {
-      skillContent = await response.text()
-    }
+    const skillData = await metaResponse.json() as ClawHubSkillDetail
 
-    const spec: SkillSpec = {
-      spec_version: '1',
-      name: entry.name,
-      type: 'skill',
-      version: entry.version,
-      author: entry.author,
-      description: entry.description,
-      system_prompt: skillContent,
-      skill_content: skillContent,
-      store: {
-        slug: entry.slug,
-        registry_id: source.id,
-        tags: entry.tags || [],
+    // Download the skill content
+    const downloadUrl = `${baseUrl}/api/v1/download/${slug}`
+    const downloadResponse = await fetchWithTimeout(downloadUrl, {
+      headers: {
+        'Accept': 'application/zip',
+        'User-Agent': 'Cafe-Store/1.0',
       },
+    })
+
+    if (!downloadResponse.ok) {
+      // Fallback: try to get SKILL.md directly
+      const skillMdUrl = `${baseUrl}/api/v1/skills/${slug}/files/SKILL.md`
+      const mdResponse = await fetchWithTimeout(skillMdUrl, {
+        headers: {
+          'Accept': 'text/markdown',
+          'User-Agent': 'Cafe-Store/1.0',
+        },
+      })
+
+      if (mdResponse.ok) {
+        const skillContent = await mdResponse.text()
+        return buildSpec(entry, skillContent, source.id)
+      }
+
+      throw new Error(`Failed to fetch skill content: HTTP ${downloadResponse.status}`)
     }
 
-    return spec
+    // For now, return a spec with installation instructions
+    const skillContent = `# ${skillData.name}\n\n${skillData.summary || skillData.description || ''}\n\n## Installation\n\n\`\`\`bash\nnpx clawhub@latest install ${slug}\n\`\`\`\n\n## Files\n\n${skillData.files?.map(f => `- ${f.path}`).join('\n') || 'No files listed'}`
+
+    return buildSpec(entry, skillContent, source.id)
   }
+}
+
+function buildSpec(entry: RegistryEntry, content: string, registryId: string): AppSpec {
+  const spec: SkillSpec = {
+    spec_version: '1',
+    name: entry.name,
+    type: 'skill',
+    version: entry.version,
+    author: entry.author,
+    description: entry.description,
+    system_prompt: content,
+    skill_content: content,
+    store: {
+      slug: entry.slug,
+      registry_id: registryId,
+      tags: entry.tags || [],
+    },
+  }
+  return spec
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -166,25 +202,22 @@ function mapClawHubSkills(skills: ClawHubSkill[]): RegistryEntry[] {
     seenSlugs.add(slug)
 
     const author = skill.author || skill.owner || 'community'
-    const repo = skill.repo || 'skills'
-    const path = skill.path || `${author}/${repo}/${slug}`
 
     apps.push({
       slug,
       name: skill.name || skill.slug,
-      version: skill.version || '1.0.0',
+      version: skill.version || skill.latestVersion || '1.0.0',
       author,
-      description: skill.description || skill.name || 'No description',
+      description: skill.summary || skill.description || skill.name || 'No description',
       type: 'skill',
       format: 'bundle',
-      path,
-      category: skill.category || 'other',
+      path: slug,
+      category: 'other',
       tags: skill.tags || [],
       meta: {
         stars: skill.stars,
-        downloads: skill.downloads,
-        repo,
-        owner: skill.owner,
+        downloads: skill.downloads || skill.installs || skill.installsAllTime,
+        verified: skill.verified,
       },
     })
   }
