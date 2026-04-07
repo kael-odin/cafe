@@ -1,144 +1,125 @@
 /**
  * SkillsHub Adapter (Proxy Mode)
  *
- * Fetches from https://skillhub.tencent.com (腾讯 Skills 社区)
- * SkillsHub 是 ClawHub 的中国镜像，数据来源于 ClawHub
+ * SkillsHub (https://skillhub.tencent.com) 是腾讯提供的技能市场。
  * 
- * API: GET /api/v1/search?q=...&limit=50
- *      GET /api/v1/skills?limit=...&sort=newest
- *      GET /api/v1/skills/<slug>
- *
- * Features:
- * - 3.3万+ skills from ClawHub 全量镜像
- * - 专为中国用户优化，高速下载
- * - 全中文本土化适配
- * - 与 ClawHub API 兼容
- *
- * Proxy strategy: queries are forwarded on demand.
+ * API 端点:
+ * - 列表: GET https://api.skillhub.tencent.com/api/skills
+ * - 参数: page, pageSize, sortBy, order
+ * - 搜索: 通过 keyword 参数实现
+ * 
+ * 响应格式:
+ * {
+ *   code: 0,
+ *   data: {
+ *     list: [...],
+ *     total: number,
+ *     page: number,
+ *     pageSize: number
+ *   },
+ *   message: 'success'
+ * }
  */
 
-import { fetchWithTimeout } from './cafe.adapter'
-import { sanitizeSlug } from './mcp-registry.adapter'
 import type { RegistrySource, RegistryEntry, StoreQueryParams } from '../../../shared/store/store-types'
 import type { AppSpec, SkillSpec } from '../../apps/spec/schema'
 import type { RegistryAdapter, AdapterQueryResult } from './types'
 
-// ── External API types (same as ClawHub) ───────────────────────────────────
-
+// SkillsHub API 响应类型
 interface SkillsHubSkill {
-  id: string
-  slug: string
   name: string
-  summary?: string
-  description?: string
-  author?: string
-  owner?: string
-  tags?: string[]
-  stars?: number
-  downloads?: number
+  slug: string
+  description: string
+  description_zh?: string
+  ownerName: string
+  version: string
+  tags?: string[] | null
+  category: string
+  homepage?: string
+  downloads: number
   installs?: number
-  installsAllTime?: number
-  version?: string
-  latestVersion?: string
-  updatedAt?: string
-  verified?: boolean
+  score: number
+  stars?: number
+  source?: string
+  created_at: number
+  updated_at: number
 }
 
-interface SkillsHubSearchResponse {
-  results: SkillsHubSkill[]
-  total: number
-  query: string
+interface SkillsHubResponse {
+  code: number
+  data: {
+    list?: SkillsHubSkill[]
+    skills?: SkillsHubSkill[]
+    items?: SkillsHubSkill[]
+    total: number
+    page?: number
+    pageSize?: number
+  }
+  message: string
 }
-
-interface SkillsHubSkillsResponse {
-  skills: SkillsHubSkill[]
-  total: number
-  limit: number
-  offset: number
-}
-
-// ── Adapter ────────────────────────────────────────────────────────────────
 
 export class SkillsHubAdapter implements RegistryAdapter {
   readonly strategy = 'proxy' as const
+  private readonly API_BASE = 'https://api.skillhub.tencent.com/api'
 
   async query(source: RegistrySource, params: StoreQueryParams): Promise<AdapterQueryResult> {
-    const baseUrl = source.url.replace(/\/+$/, '')
-    const limit = params.pageSize || 50
-    const t0 = performance.now()
+    const { search, page = 1, pageSize = 30 } = params
 
-    let url: string
-    if (params.search && params.search.trim()) {
-      // Use search API for queries
-      url = `${baseUrl}/api/v1/search?q=${encodeURIComponent(params.search)}&limit=${limit}`
-    } else {
-      // Use skills list API for browsing
-      url = `${baseUrl}/api/v1/skills?limit=${limit}&sort=downloads`
+    // 构建 URL
+    const url = new URL(`${this.API_BASE}/skills`)
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('pageSize', String(pageSize))
+    url.searchParams.set('sortBy', 'score')
+    url.searchParams.set('order', 'desc')
+
+    // 如果有搜索关键词，添加到 URL
+    if (search) {
+      url.searchParams.set('keyword', search)
     }
 
-    const response = await fetchWithTimeout(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Cafe-Store/1.0',
-      },
-    })
+    console.log(`[SkillsHub] Fetching: ${url.toString()}`)
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      })
 
-    const data = await response.json()
-    
-    // Handle both search and list response formats
-    const skills = data.results || data.skills || []
-    const items = mapSkillsHubSkills(skills)
+      if (!response.ok) {
+        throw new Error(`SkillsHub API error: ${response.status} ${response.statusText}`)
+      }
 
-    const dt = performance.now() - t0
-    console.log(`[SkillsHubAdapter] query: ${items.length} results (${dt.toFixed(0)}ms)`)
+      const data = await response.json() as SkillsHubResponse
 
-    return {
-      items,
-      total: data.total || items.length,
-      hasMore: items.length >= limit,
+      if (data.code !== 0) {
+        throw new Error(`SkillsHub API error: ${data.message}`)
+      }
+
+      // 检查实际的列表字段名（可能是 list、skills 或 items）
+      const skillList = data.data.list || data.data.skills || data.data.items || []
+      
+      // 转换为 RegistryEntry 格式
+      const items: RegistryEntry[] = skillList.map(skill => this.skillToEntry(skill))
+
+      console.log(`[SkillsHub] Fetched ${items.length} skills, total: ${data.data.total}`)
+
+      return {
+        items,
+        total: data.data.total,
+        hasMore: page * pageSize < data.data.total,
+      }
+    } catch (error) {
+      console.error('[SkillsHub] Query failed:', error)
+      throw error
     }
   }
 
   async fetchSpec(source: RegistrySource, entry: RegistryEntry): Promise<AppSpec> {
-    const baseUrl = source.url.replace(/\/+$/, '')
-    const slug = entry.slug
-
-    // Get skill metadata
-    const metaUrl = `${baseUrl}/api/v1/skills/${slug}`
-    const metaResponse = await fetchWithTimeout(metaUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Cafe-Store/1.0',
-      },
-    })
-
-    if (!metaResponse.ok) {
-      throw new Error(`Failed to fetch skill metadata: HTTP ${metaResponse.status}`)
-    }
-
-    const skillData = await metaResponse.json()
-
-    // Try to get SKILL.md directly
-    const skillMdUrl = `${baseUrl}/api/v1/skills/${slug}/files/SKILL.md`
-    const mdResponse = await fetchWithTimeout(skillMdUrl, {
-      headers: {
-        'Accept': 'text/markdown',
-        'User-Agent': 'Cafe-Store/1.0',
-      },
-    })
-
-    let skillContent: string
-    if (mdResponse.ok) {
-      skillContent = await mdResponse.text()
-    } else {
-      // Fallback: return a spec with installation instructions
-      skillContent = `# ${skillData.name || entry.name}\n\n${skillData.summary || skillData.description || entry.description}\n\n## Installation\n\n\`\`\`bash\nnpx clawhub@latest install ${slug}\n\`\`\``
-    }
-
+    // SkillsHub 的技能详情可能需要额外的 API 调用
+    // 目前使用基本信息构建 spec
     const spec: SkillSpec = {
       spec_version: '1',
       name: entry.name,
@@ -146,52 +127,47 @@ export class SkillsHubAdapter implements RegistryAdapter {
       version: entry.version,
       author: entry.author,
       description: entry.description,
-      system_prompt: skillContent,
-      skill_content: skillContent,
+      system_prompt: `# ${entry.name}\n\n${entry.description}\n\n## Installation\n\n\`\`\`bash\nskillhub install ${entry.slug}\n\`\`\``,
+      skill_content: `# ${entry.name}\n\n${entry.description}\n\n## Installation\n\n\`\`\`bash\nskillhub install ${entry.slug}\n\`\`\``,
       store: {
         slug: entry.slug,
         registry_id: source.id,
         tags: entry.tags || [],
       },
     }
-
     return spec
   }
-}
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function mapSkillsHubSkills(skills: SkillsHubSkill[]): RegistryEntry[] {
-  const apps: RegistryEntry[] = []
-  const seenSlugs = new Set<string>()
-
-  for (const skill of skills) {
-    if (!skill.name && !skill.slug) continue
-
-    const slug = sanitizeSlug(skill.slug || skill.name || 'unknown')
-    if (!slug || seenSlugs.has(slug)) continue
-    seenSlugs.add(slug)
-
-    const author = skill.author || skill.owner || 'community'
-
-    apps.push({
-      slug,
-      name: skill.name || skill.slug,
-      version: skill.version || skill.latestVersion || '1.0.0',
-      author,
-      description: skill.summary || skill.description || skill.name || 'No description',
+  /**
+   * 将 SkillsHub 技能转换为 RegistryEntry 格式
+   */
+  private skillToEntry(skill: SkillsHubSkill): RegistryEntry {
+    // 优先使用中文描述，如果不存在则使用英文描述
+    const description = skill.description_zh || skill.description || ''
+    
+    return {
+      slug: skill.slug,
+      name: skill.name,
+      version: skill.version || '1.0.0',
+      author: skill.ownerName || 'Unknown',
+      description,
       type: 'skill',
       format: 'bundle',
-      path: slug,
-      category: 'other',
+      path: '', // SkillsHub 使用 slug 而非路径
+      category: skill.category || 'other',
       tags: skill.tags || [],
+      icon: skill.homepage,
+      created_at: new Date(skill.created_at).toISOString(),
+      updated_at: new Date(skill.updated_at).toISOString(),
       meta: {
+        downloads: skill.downloads,
+        installs: skill.installs,
+        score: skill.score,
         stars: skill.stars,
-        downloads: skill.downloads || skill.installs || skill.installsAllTime,
-        verified: skill.verified,
+        source: skill.source,
+        description_zh: skill.description_zh,
+        description_en: skill.description,
       },
-    })
+    }
   }
-
-  return apps
 }

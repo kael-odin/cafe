@@ -233,11 +233,11 @@ export class QueryService {
             items: result.items,
             total: result.total ?? result.items.length,
             hasMore: result.hasMore,
-            sources: [{ registryId: targetRegistry.id, count: result.items.length }],
+            sources: [{ registryId: targetRegistry.id, status: 'ok' }],
           }
         } catch (err) {
           console.error(`[StoreQuery] Proxy query failed for ${targetRegistry.id}:`, err)
-          return { items: [], total: 0, hasMore: false, sources: [] }
+          return { items: [], total: 0, hasMore: false, sources: [{ registryId: targetRegistry.id, status: 'error', error: String(err) }] }
         }
       } else {
         // Mirror source: query SQLite with registryId filter
@@ -257,8 +257,18 @@ export class QueryService {
     const proxy = await this.queryProxySources(params, proxyRegistries)
 
     // Merge: mirror items first (local, fast), then proxy
-    const items = [...mirror.items, ...proxy.items]
-    const total = (mirror.total ?? 0) + (proxy.total ?? 0)
+    // Deduplicate by slug to avoid React key conflicts
+    const seenSlugs = new Set<string>()
+    const items: RegistryEntry[] = []
+    
+    for (const item of [...mirror.items, ...proxy.items]) {
+      if (!seenSlugs.has(item.slug)) {
+        seenSlugs.add(item.slug)
+        items.push(item)
+      }
+    }
+    
+    const total = items.length
     const hasMore = mirror.hasMore || proxy.hasMore
 
     return {

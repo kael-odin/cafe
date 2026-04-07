@@ -36,7 +36,7 @@ export function StoreCard({ entry, onClick, className = '', style }: StoreCardPr
       {/* First line: icon + name + type badge + version */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          {entry.icon && (
+          {entry.icon && !entry.icon.startsWith('http') && (
             <span className="text-base flex-shrink-0 w-9 h-9 rounded-xl panel-glass flex items-center justify-center">{entry.icon}</span>
           )}
           <span className="text-sm font-medium text-foreground truncate">

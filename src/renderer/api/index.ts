@@ -1627,7 +1627,7 @@ export const api = {
     onEvent('app:navigate', callback),
 
   // ===== Store (App Registry) =====
-  storeQuery: async (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }): Promise<ApiResponse> => {
+  storeQuery: async (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string; registryId?: string }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.Cafe.storeQuery(params)
     }

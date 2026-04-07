@@ -15,15 +15,20 @@ import type { AppType } from '../../../shared/apps/spec-types'
 
 const TYPE_FILTERS: Array<{ id: AppType | null; labelKey: string }> = [
   { id: null, labelKey: 'All' },
-  { id: 'automation', labelKey: 'Digital Human' },
-  { id: 'skill', labelKey: 'Skill' },
+  { id: 'automation', labelKey: 'Kael-Odin Digital Humans' },
+  { id: 'skill', labelKey: 'Claude Skills' },
   { id: 'mcp', labelKey: 'MCP' },
 ]
 
 // Registry source filters (shown as separate tabs)
-const REGISTRY_FILTERS: Array<{ id: string; labelKey: string }> = [
-  { id: 'skillshub', labelKey: 'SkillsHub' },
-  { id: 'clawhub', labelKey: 'ClawHub' },
+// 只保留已实现的数据源
+const REGISTRY_FILTERS_SKILLS: Array<{ id: string; labelKey: string }> = [
+  { id: 'skillshub', labelKey: 'SkillsHub (腾讯)' },
+  { id: 'clawhub', labelKey: 'ClawHub (OpenClaw)' },
+]
+
+const REGISTRY_FILTERS_AGENTS: Array<{ id: string; labelKey: string }> = [
+  // 官方源已在主标签页显示，这里不需要重复
 ]
 
 export function StoreHeader(): JSX.Element {
@@ -90,12 +95,12 @@ export function StoreHeader(): JSX.Element {
   // Registry filter click (SkillsHub/ClawHub)
   const handleRegistryFilterClick = useCallback((registryId: string | null) => {
     setStoreRegistryFilter(registryId)
-    setStoreTypeFilter(registryId ? 'skill' : null)  // Force skill type for these registries
+    setStoreTypeFilter(registryId ? 'skill' : null)
     const state = useAppsPageStore.getState()
     void loadStoreApps({
       search: state.storeSearchQuery || undefined,
       category: state.storeCategory ?? undefined,
-      type: registryId ? 'skill' : (state.storeTypeFilter ?? undefined),
+      type: registryId ? 'skill' : state.storeTypeFilter ?? undefined,
       registryId: registryId ?? undefined,
     })
   }, [setStoreRegistryFilter, setStoreTypeFilter, loadStoreApps])
@@ -155,22 +160,44 @@ export function StoreHeader(): JSX.Element {
         ))}
       </div>
 
-      {/* Registry source tabs (SkillsHub/ClawHub) */}
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-muted-foreground mr-1">{t('Sources')}:</span>
-        {REGISTRY_FILTERS.map(rf => (
-          <button
-            key={rf.id}
-            onClick={() => handleRegistryFilterClick(rf.id)}
-            className={`flex-shrink-0 px-3 py-1.5 text-xs rounded-xl transition-colors ${
-              storeRegistryFilter === rf.id
-                ? 'toolbar-chip toolbar-chip-active font-medium'
-                : 'toolbar-chip text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t(rf.labelKey)}
-          </button>
-        ))}
+      {/* Registry source tabs - Grouped by type */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium min-w-[60px]">{t('Skill Sources')}:</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {REGISTRY_FILTERS_SKILLS.map(rf => (
+              <button
+                key={rf.id}
+                onClick={() => handleRegistryFilterClick(rf.id)}
+                className={`flex-shrink-0 px-2.5 py-1 text-[11px] rounded-lg transition-colors ${
+                  storeRegistryFilter === rf.id
+                    ? 'toolbar-chip toolbar-chip-active font-medium'
+                    : 'toolbar-chip text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t(rf.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium min-w-[60px]">{t('Agent Sources')}:</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {REGISTRY_FILTERS_AGENTS.map(rf => (
+              <button
+                key={rf.id}
+                onClick={() => handleRegistryFilterClick(rf.id)}
+                className={`flex-shrink-0 px-2.5 py-1 text-[11px] rounded-lg transition-colors ${
+                  storeRegistryFilter === rf.id
+                    ? 'toolbar-chip toolbar-chip-active font-medium'
+                    : 'toolbar-chip text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t(rf.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Category chips */}

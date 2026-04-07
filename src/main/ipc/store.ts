@@ -27,7 +27,7 @@ export function registerStoreHandlers(): void {
   // ── store:query (new primary entry point) ─────────────────────────────
   ipcMain.handle(
     'store:query',
-    async (_event, params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }) => {
+    async (_event, params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string; registryId?: string }) => {
       const queryParams: StoreQueryParams = {
         search: params.search,
         type: params.type as StoreQueryParams['type'],
@@ -35,6 +35,7 @@ export function registerStoreHandlers(): void {
         page: params.page ?? 1,
         pageSize: params.pageSize ?? 20,
         locale: params.locale,
+        registryId: params.registryId,
       }
       return storeController.queryStoreApps(queryParams)
     }

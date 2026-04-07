@@ -42,11 +42,29 @@ import { loadProductConfig } from '../services/ai-sources/auth-loader'
 // Constants
 // ============================================
 
-/** Built-in registry sources (always present, user can toggle but not delete) */
+/**
+ * Built-in registry sources (always present, user can toggle but not delete)
+ * 
+ * 数据源说明：
+ * - official: 官方数字人仓库 (https://kael-odin.github.io/digital-human-protocol) - 32个真实数字人
+ * - mcp-official: MCP 官方注册表 - Model Context Protocol 官方服务器
+ * - smithery: Smithery MCP 服务器市场
+ * - claude-skills: Claude Skills 注册表
+ * - skillshub: 腾讯 SkillsHub - 留待后续开发
+ * - clawhub: OpenClaw ClawHub - 留待后续开发
+ * 
+ * 移除的虚假数据源（留待后续真实数据接入）：
+ * - n8n: 需要实现真实数据抓取
+ * - character-ai: 需要实现真实数据抓取
+ * - poe: 需要实现真实数据抓取
+ * - zapier: 需要实现真实数据抓取
+ * - coze: 需要实现真实数据抓取
+ * - agent-world: 需要实现真实数据抓取
+ */
 const BUILTIN_REGISTRIES: RegistrySource[] = [
   {
     id: 'official',
-    name: 'Digital Human Protocol',
+    name: 'Kael-Odin Digital Humans',
     url: 'https://kael-odin.github.io/digital-human-protocol',
     enabled: true,
     isDefault: true,

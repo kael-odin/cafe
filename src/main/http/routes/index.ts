@@ -1334,7 +1334,7 @@ export function registerApiRoutes(app: Express): void {
   // POST /api/store/query — paginated query (new primary entry point)
   app.post('/api/store/query', async (req: Request, res: Response) => {
     try {
-      const { search, type, category, page, pageSize, locale } = req.body as Record<string, unknown>
+      const { search, type, category, page, pageSize, locale, registryId } = req.body as Record<string, unknown>
       const result = await storeController.queryStoreApps({
         search: typeof search === 'string' ? search : undefined,
         type: typeof type === 'string' ? type as 'mcp' | 'skill' | 'automation' | 'extension' : undefined,
@@ -1342,6 +1342,7 @@ export function registerApiRoutes(app: Express): void {
         page: typeof page === 'number' ? page : 1,
         pageSize: typeof pageSize === 'number' ? pageSize : 20,
         locale: typeof locale === 'string' ? locale : undefined,
+        registryId: typeof registryId === 'string' ? registryId : undefined,
       })
       res.json(result)
     } catch (error) {

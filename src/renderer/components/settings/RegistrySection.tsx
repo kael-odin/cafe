@@ -16,8 +16,8 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   'mcp-registry': 'MCP',
   'smithery': 'Smithery',
   'claude-skills': 'Claude Skills',
-  'skillshub': 'SkillsHub',
-  'clawhub': 'ClawHub',
+  'skillshub': 'SkillsHub (腾讯)',
+  'clawhub': 'ClawHub (OpenClaw)',
 }
 
 export function RegistrySection(): JSX.Element {
@@ -154,7 +154,10 @@ export function RegistrySection(): JSX.Element {
     }
   }
 
-  const BUILTIN_IDS = new Set(['official', 'mcp-official', 'smithery', 'claude-skills', 'skillshub', 'clawhub'])
+  const BUILTIN_IDS = new Set([
+    'official', 'mcp-official', 'smithery', 'claude-skills',
+    'skillshub', 'clawhub'
+  ])
   const isBuiltin = (registry: RegistrySource) =>
     (registry.isDefault ?? false) || BUILTIN_IDS.has(registry.id)
 
@@ -245,7 +248,7 @@ export function RegistrySection(): JSX.Element {
                   </div>
                 </div>
 
-                {/* Smithery API key row */}
+                {/* API key row for sources that require it */}
                 {registry.sourceType === 'smithery' && (
                   <div className="mt-3 flex items-center gap-2 subsection-soft-panel p-3 rounded-xl">
                     <Key className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -255,7 +258,7 @@ export function RegistrySection(): JSX.Element {
                       onChange={e =>
                         setApiKeyEditing(prev => ({ ...prev, [registry.id]: e.target.value }))
                       }
-                      placeholder={t('Smithery API key (optional)')}
+                      placeholder={t(`${SOURCE_TYPE_LABELS[registry.sourceType ?? ''] ?? registry.sourceType} API key`)}
                       className="form-input-soft flex-1 px-2.5 py-1.5 text-xs"
                     />
                     {hasApiKeyDraft && (

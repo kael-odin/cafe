@@ -29,6 +29,17 @@ export interface RegistrySource {
   /**
    * Source type — determines which adapter is used to fetch and parse the index.
    * Defaults to 'cafe' when absent (backward-compatible).
+   * 
+   * 已实现的类型：
+   * - cafe: 官方数字人仓库
+   * - mcp-registry: MCP 官方注册表
+   * - smithery: Smithery MCP 服务器市场
+   * - claude-skills: Claude Skills 注册表
+   * - skillshub: 腾讯 SkillsHub（待开发）
+   * - clawhub: OpenClaw ClawHub（待开发）
+   * 
+   * 移除的类型（留待后续真实数据接入）：
+   * - n8n, character-ai, poe, zapier, coze, agent-world
    */
   sourceType?: 'cafe' | 'mcp-registry' | 'smithery' | 'claude-skills' | 'skillshub' | 'clawhub'
   /**
