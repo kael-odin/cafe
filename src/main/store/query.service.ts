@@ -215,6 +215,37 @@ export class QueryService {
   private async queryTyped(params: StoreQueryParams, registries: RegistrySource[]): Promise<StoreQueryResponse> {
     const enabled = registries.filter(r => r.enabled)
 
+    // If registryId is specified, only query that specific registry
+    if (params.registryId) {
+      const targetRegistry = enabled.find(r => r.id === params.registryId)
+      if (!targetRegistry) {
+        console.log(`[StoreQuery] Registry not found: ${params.registryId}`)
+        return { items: [], total: 0, hasMore: false, sources: [] }
+      }
+
+      const adapter = getAdapter(targetRegistry)
+      
+      if (adapter.strategy === 'proxy') {
+        // Proxy source: query directly
+        try {
+          const result = await adapter.query(targetRegistry, params)
+          return {
+            items: result.items,
+            total: result.total ?? result.items.length,
+            hasMore: result.hasMore,
+            sources: [{ id: targetRegistry.id, count: result.items.length }],
+          }
+        } catch (err) {
+          console.error(`[StoreQuery] Proxy query failed for ${targetRegistry.id}:`, err)
+          return { items: [], total: 0, hasMore: false, sources: [] }
+        }
+      } else {
+        // Mirror source: query SQLite with registryId filter
+        return this.queryMirror(params)
+      }
+    }
+
+    // No specific registry: query all sources
     // Mirror: always query SQLite (type filter in SQL)
     const mirror = this.queryMirror(params)
 

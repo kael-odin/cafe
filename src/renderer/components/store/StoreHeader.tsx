@@ -67,13 +67,14 @@ export function StoreHeader(): JSX.Element {
   // Type filter click triggers immediate filter
   const handleTypeFilterClick = useCallback((typeId: AppType | null) => {
     setStoreTypeFilter(typeId)
+    setStoreRegistryFilter(null)  // Clear registry filter when switching type
     const state = useAppsPageStore.getState()
     void loadStoreApps({
       search: state.storeSearchQuery || undefined,
       category: state.storeCategory ?? undefined,
       type: typeId ?? undefined,
     })
-  }, [setStoreTypeFilter, loadStoreApps])
+  }, [setStoreTypeFilter, setStoreRegistryFilter, loadStoreApps])
 
   // Category click triggers immediate filter
   const handleCategoryClick = useCallback((categoryId: string | null) => {
