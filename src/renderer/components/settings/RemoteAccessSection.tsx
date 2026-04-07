@@ -116,7 +116,15 @@ export function RemoteAccessSection(): JSX.Element {
     } else {
       setIsEnablingTunnel(true)
       try {
-        await api.enableTunnel()
+        const response = await api.enableTunnel()
+        if (!response.success) {
+          console.error('[RemoteAccessSection] Failed to enable tunnel:', response.error)
+          // Show error to user
+          alert(response.error || 'Failed to start tunnel')
+        }
+      } catch (error) {
+        console.error('[RemoteAccessSection] Error enabling tunnel:', error)
+        alert(String(error))
       } finally {
         setIsEnablingTunnel(false)
       }

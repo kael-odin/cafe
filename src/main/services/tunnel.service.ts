@@ -3,10 +3,12 @@
  * Directly spawns cloudflared binary to avoid ES Module readonly issues
  */
 
-import { ChildProcess, spawn } from 'child_process'
+import { ChildProcess, spawn, exec } from 'child_process'
 import { existsSync, statSync } from 'fs'
 import { registerProcess, unregisterProcess, getCurrentInstanceId } from './health'
-import { execSync } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 // Tunnel state
 interface TunnelState {
@@ -42,18 +44,18 @@ interface WindowsProxySettings {
 /**
  * Get Windows system proxy settings
  */
-function getWindowsProxySettings(): WindowsProxySettings {
+async function getWindowsProxySettings(): Promise<WindowsProxySettings> {
   try {
-    const result = execSync(
+    const { stdout } = await execAsync(
       'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /v ProxyServer /v ProxyOverride 2>nul',
-      { encoding: 'utf8', timeout: 5000 }
+      { timeout: 5000 }
     )
     
     let enabled = false
     let server = ''
     let override = ''
     
-    const lines = result.split('\n')
+    const lines = stdout.split('\n')
     for (const line of lines) {
       if (line.includes('ProxyEnable')) {
         const match = line.match(/ProxyEnable\s+REG_DWORD\s+0x([0-9a-f]+)/i)
@@ -82,19 +84,19 @@ function getWindowsProxySettings(): WindowsProxySettings {
 /**
  * Disable Windows system proxy temporarily
  */
-function disableWindowsProxy(): WindowsProxySettings | null {
+async function disableWindowsProxy(): Promise<WindowsProxySettings | null> {
   if (process.platform !== 'win32') return null
   
-  const settings = getWindowsProxySettings()
+  const settings = await getWindowsProxySettings()
   if (!settings.enabled) return null
   
   console.log('[Tunnel] Temporarily disabling Windows system proxy:', settings.server)
   
   try {
     // Disable proxy
-    execSync(
+    await execAsync(
       'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f',
-      { encoding: 'utf8', timeout: 5000 }
+      { timeout: 5000 }
     )
     console.log('[Tunnel] Windows system proxy disabled')
     return settings
@@ -107,7 +109,7 @@ function disableWindowsProxy(): WindowsProxySettings | null {
 /**
  * Restore Windows system proxy settings
  */
-function restoreWindowsProxy(settings: WindowsProxySettings | null): void {
+async function restoreWindowsProxy(settings: WindowsProxySettings | null): Promise<void> {
   if (!settings || process.platform !== 'win32') return
   
   console.log('[Tunnel] Restoring Windows system proxy:', settings.server)
@@ -115,9 +117,9 @@ function restoreWindowsProxy(settings: WindowsProxySettings | null): void {
   try {
     if (settings.enabled && settings.server) {
       // Re-enable proxy
-      execSync(
+      await execAsync(
         `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f`,
-        { encoding: 'utf8', timeout: 5000 }
+        { timeout: 5000 }
       )
       console.log('[Tunnel] Windows system proxy restored')
     }
@@ -212,7 +214,7 @@ export async function startTunnel(localPort: number): Promise<string> {
       }
 
       // Disable Windows system proxy temporarily to allow cloudflared direct connection
-      originalProxySettings = disableWindowsProxy()
+      originalProxySettings = await disableWindowsProxy()
       
       // Wait a moment for proxy settings to take effect
       if (originalProxySettings) {
@@ -307,8 +309,8 @@ export async function startTunnel(localPort: number): Promise<string> {
           state.url = url
           state.status = 'running'
           notifyStatus()
-          // Restore proxy settings after tunnel is established
-          restoreWindowsProxy(originalProxySettings)
+          // Restore proxy settings after tunnel is established (fire and forget)
+          void restoreWindowsProxy(originalProxySettings)
           originalProxySettings = null
           resolve(url)
         }
@@ -321,8 +323,8 @@ export async function startTunnel(localPort: number): Promise<string> {
       // Handle process exit
       proc.on('exit', (code) => {
         console.log('[Tunnel] Process exited with code:', code)
-        // Restore proxy settings if not already restored
-        restoreWindowsProxy(originalProxySettings)
+        // Restore proxy settings if not already restored (fire and forget)
+        void restoreWindowsProxy(originalProxySettings)
         originalProxySettings = null
         if (!urlFound) {
           clearTimeout(timeout)
@@ -344,8 +346,8 @@ export async function startTunnel(localPort: number): Promise<string> {
       proc.on('error', (error: Error) => {
         console.error('[Tunnel] Process error:', error)
         clearTimeout(timeout)
-        // Restore proxy settings
-        restoreWindowsProxy(originalProxySettings)
+        // Restore proxy settings (fire and forget)
+        void restoreWindowsProxy(originalProxySettings)
         originalProxySettings = null
         // Unregister from health system
         unregisterProcess('tunnel', 'tunnel')
@@ -361,8 +363,8 @@ export async function startTunnel(localPort: number): Promise<string> {
     } catch (error: unknown) {
       const err = error as Error
       console.error('[Tunnel] Failed to start:', err)
-      // Restore proxy settings
-      restoreWindowsProxy(originalProxySettings)
+      // Restore proxy settings (fire and forget)
+      void restoreWindowsProxy(originalProxySettings)
       originalProxySettings = null
       state.status = 'error'
       state.error = err.message
@@ -383,7 +385,7 @@ export async function stopTunnel(): Promise<void> {
     unregisterProcess('tunnel', 'tunnel')
 
     // Restore proxy settings
-    restoreWindowsProxy(originalProxySettings)
+    await restoreWindowsProxy(originalProxySettings)
     originalProxySettings = null
 
     try {
