@@ -217,15 +217,11 @@ export function SpacePage(): JSX.Element {
       if (pendingNav) {
         useChatStore.setState({ pendingPulseNavigation: null })
         useChatStore.getState().selectConversation(pendingNav)
-      } else if (spaceState.conversations.length > 0) {
-        // If no conversation selected, select the first one
-        if (!spaceState.currentConversationId) {
-          useChatStore.getState().selectConversation(spaceState.conversations[0].id)
-        }
-      } else {
+      } else if (spaceState.conversations.length === 0) {
         // No conversations exist - create a new one
         await useChatStore.getState().createConversation(currentSpace.id)
       }
+
     }
 
     initSpace()
@@ -474,7 +470,7 @@ export function SpacePage(): JSX.Element {
 
         {/* Artifact rail - auto-collapses when maximized via useEffect above */}
         {/* Smart collapse: collapses when canvas is open, respects user preference */}
-        {!isMobile && (
+        {!isMobile && currentSpace && (
           <ArtifactRail
             externalExpanded={effectiveRailExpanded}
             onExpandedChange={setRailExpanded}
@@ -482,6 +478,7 @@ export function SpacePage(): JSX.Element {
             onWidthChange={handleArtifactRailWidthChange}
           />
         )}
+
       </div>
 
       {/* Mobile Canvas Overlay */}

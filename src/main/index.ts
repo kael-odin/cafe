@@ -11,6 +11,7 @@
 // This replaces console.log/warn/error globally with electron-log
 // Logs are written to: ~/Library/Logs/Cafe/ (macOS), %USERPROFILE%\AppData\Roaming\Cafe\logs (Windows)
 import log from 'electron-log/main.js'
+import { join } from 'path'
 
 // Initialize for renderer process support (IPC transport)
 log.initialize()
@@ -54,7 +55,7 @@ import { mkdirSync } from 'fs'
 // Some Windows GPU configurations cause the GPU process to crash, resulting in a white/blank screen
 // Using both disableHardwareAcceleration() and disable-gpu switch for maximum compatibility
 if (process.platform === 'win32') {
-  const localAppData = process.env.LOCALAPPDATA ?? process.env.TEMP ?? process.cwd()
+const localAppData = process.env.LOCALAPPDATA ?? process.env.TEMP ?? process.cwd()
   const runtimeScope = isDev ? `dev-${process.pid}` : 'prod'
   const sessionDataPath = join(localAppData, 'Cafe', runtimeScope, 'session-data')
   const userDataPath = join(localAppData, 'Cafe', runtimeScope, 'user-data')
@@ -131,7 +132,6 @@ app.on('second-instance', () => {
   }
 })
 
-import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import {
   initializeEssentialServices,
@@ -490,9 +490,14 @@ async function shutdownServicesWithTimeout(timeoutMs: number): Promise<void> {
   ])
 }
 
-app.on('before-quit', () => {
-  isAppQuitting = true
-  shutdownServicesWithTimeout(SHUTDOWN_TIMEOUT_MS).catch(console.error)
+app.on('before-quit', (event) => {
+  if (!isAppQuitting) {
+    event.preventDefault()
+    isAppQuitting = true
+    shutdownServicesWithTimeout(SHUTDOWN_TIMEOUT_MS)
+      .catch(console.error)
+      .finally(() => app.quit())
+  }
 })
 
 app.on('window-all-closed', () => {

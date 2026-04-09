@@ -1,4 +1,4 @@
-﻿/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
+/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
  * HTTP Server - Remote access server for Cafe
  * Exposes REST API and serves the frontend for remote access
  */
@@ -88,9 +88,13 @@ export async function startHttpServer(
   expressApp.use(express.json())
   expressApp.use(express.urlencoded({ extended: true }))
 
-  // CORS for remote access
+  // CORS for remote access - restrict to same origin or known origins
   expressApp.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*')
+    const origin = req.headers.origin
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin)
+      res.header('Access-Control-Allow-Credentials', 'true')
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
@@ -147,7 +151,8 @@ export async function startHttpServer(
       if (req.path === '/' && !urlToken && !headerToken) {
         // Check cookie for token
         const cookies = req.headers.cookie || ''
-        const hasToken = cookies.includes('Cafe_authenticated=true')
+        const cookieMatch = cookies.match(/Cafe_auth_token=([^;]+)/)
+        const hasToken = cookieMatch && validateToken(cookieMatch[1])
         if (!hasToken) {
           return res.send(getRemoteLoginPage())
         }
@@ -214,7 +219,8 @@ export async function startHttpServer(
 
       // Check if authenticated via cookie
       const cookies = req.headers.cookie || ''
-      const hasToken = cookies.includes('Cafe_authenticated=true')
+      const cookieMatch = cookies.match(/Cafe_auth_token=([^;]+)/)
+      const hasToken = cookieMatch && validateToken(cookieMatch[1])
 
       // If not authenticated, show login page
       if (!hasToken) {
@@ -294,7 +300,7 @@ export async function startHttpServer(
     httpServer!.listen(listenPort, '0.0.0.0', () => {
       serverPort = listenPort
       console.log(`[HTTP] Server started on port ${listenPort}`)
-      console.log(`[HTTP] Access token: ${token}`)
+      console.log(`[HTTP] Server started on port ${listenPort}`)
       resolve({ port: listenPort, token })
     })
 
@@ -470,8 +476,8 @@ function getRemoteLoginPage(): string {
 
         if (res.ok) {
           localStorage.setItem('cafe_remote_token', token);
-          // Set cookie for server-side auth check
-          document.cookie = 'Cafe_authenticated=true; path=/';
+          // Set cookie with actual token for server-side auth check
+          document.cookie = 'Cafe_auth_token=' + encodeURIComponent(token) + '; path=/; SameSite=Strict';
           error.textContent = '';
           error.classList.remove('error');
           error.classList.add('success');

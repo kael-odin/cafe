@@ -26,6 +26,9 @@ local_docs/
 # Local debug scripts
 vscode-debug/
 
+# Runtime logs
+*.log
+
 # Local deploy scripts
 scripts/deploy_local_*.sh
 

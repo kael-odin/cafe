@@ -42,9 +42,9 @@ const envLocal = loadEnvLocal()
  * In open-source builds without .env.local, these will be empty strings (analytics disabled)
  */
 const analyticsDefine = {
-  '__Cafe_GA_MEASUREMENT_ID__': JSON.stringify(envLocal.Cafe_GA_MEASUREMENT_ID || ''),
-  '__Cafe_GA_API_SECRET__': JSON.stringify(envLocal.Cafe_GA_API_SECRET || ''),
-  '__Cafe_BAIDU_SITE_ID__': JSON.stringify(envLocal.Cafe_BAIDU_SITE_ID || ''),
+  '__Cafe_GA_MEASUREMENT_ID__': JSON.stringify(envLocal.CAFE_GA_MEASUREMENT_ID || ''),
+  '__Cafe_GA_API_SECRET__': JSON.stringify(envLocal.CAFE_GA_API_SECRET || ''),
+  '__Cafe_BAIDU_SITE_ID__': JSON.stringify(envLocal.CAFE_BAIDU_SITE_ID || ''),
 }
 
 /**
@@ -110,8 +110,7 @@ export default defineConfig({
     optimizeDeps: {
       // Pre-bundle these packages to avoid dynamic /@fs/ paths in remote access
       include: ['@streamdown/code', 'shiki'],
-      // Force re-bundling on startup
-      force: true
+    force: false
     },
     server: {
       host: '0.0.0.0',

@@ -23,12 +23,24 @@ interface ImageAttachment {
   size?: number
 }
 
+// File attachment type for document parsing
+interface FileAttachment {
+  id: string
+  type: 'file'
+  mediaType: string
+  data: string  // Base64 encoded
+  name?: string
+  size?: number
+  path?: string
+}
+
 export interface SendMessageRequest {
   spaceId: string
   conversationId: string
   message: string
   resumeSessionId?: string
   images?: ImageAttachment[]  // Optional images for multi-modal messages
+  files?: FileAttachment[]    // Optional files for document parsing
   thinkingEnabled?: boolean   // Enable extended thinking mode
   aiBrowserEnabled?: boolean  // Enable AI Browser tools
 }

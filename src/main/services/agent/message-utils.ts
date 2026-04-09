@@ -7,8 +7,46 @@
  * - SDK message parsing into Thought objects
  */
 
-import type { Thought, ImageAttachment, CanvasContext } from './types'
+import type { Thought, ImageAttachment, FileAttachment, CanvasContext } from './types'
 import type { SDKMessage, SDKAssistantMessage, SDKResultMessage, UsageInfo, ResultUsageInfo } from './sdk-types'
+
+const TEXT_LIKE_FILE_TYPES = new Set([
+  'text/plain',
+  'text/markdown',
+  'application/json',
+  'text/csv'
+])
+
+const MAX_INLINE_FILE_CHARS = 12000
+
+function decodeBase64Utf8(data: string): string {
+  return Buffer.from(data, 'base64').toString('utf8')
+}
+
+function buildInlineFileSection(files?: FileAttachment[]): string {
+  if (!files || files.length === 0) return ''
+
+  const sections = files.map((file, index) => {
+    const header = [`[Attachment ${index + 1}]`, `name=${file.name || 'unnamed'}`, `type=${file.mediaType}`, `size=${file.size ?? 0}B`].join(' ')
+
+    if (TEXT_LIKE_FILE_TYPES.has(file.mediaType)) {
+      try {
+        const decoded = decodeBase64Utf8(file.data)
+        const text = decoded.length > MAX_INLINE_FILE_CHARS
+          ? `${decoded.slice(0, MAX_INLINE_FILE_CHARS)}\n... [truncated]`
+          : decoded
+        return `${header}\ncontent:\n${text}`
+      } catch {
+        return `${header}\ncontent: [decode failed]`
+      }
+    }
+
+    return `${header}\ncontent: [binary document attached; inline text extraction not available yet]`
+  })
+
+  return `\n\n<attached_files>\nThe user uploaded the following files. Use their contents directly when answering.\n\n${sections.join('\n\n')}\n</attached_files>`
+}
+
 
 // ============================================
 // Canvas Context Formatting
@@ -68,25 +106,29 @@ ${tabsSummary}
  *
  * @param text - Text content of the message
  * @param images - Optional image attachments
+ * @param files - Optional file attachments (PDF, DOCX, etc.)
  * @returns Plain text string or array of content blocks for multi-modal
  */
 export function buildMessageContent(
   text: string,
-  images?: ImageAttachment[]
+  images?: ImageAttachment[],
+  files?: FileAttachment[]
 ): string | Array<{ type: string; [key: string]: unknown }> {
-  // If no images, just return plain text
+  const textWithFiles = text + buildInlineFileSection(files)
+
+  // If no images, return plain text so all providers can reliably read file contents.
   if (!images || images.length === 0) {
-    return text
+    return textWithFiles
   }
 
   // Build content blocks array for multi-modal message
   const contentBlocks: Array<{ type: string; [key: string]: unknown }> = []
 
-  // Add text block first (if there's text)
-  if (text.trim()) {
+  // Add text block first (including inlined file contents)
+  if (textWithFiles.trim()) {
     contentBlocks.push({
       type: 'text',
-      text: text
+      text: textWithFiles
     })
   }
 

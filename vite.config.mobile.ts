@@ -17,9 +17,9 @@ export default defineConfig({
     '__CAPACITOR__': JSON.stringify(true),
     '__BUILD_TIME__': JSON.stringify(new Date().toISOString()),
     // Disable analytics define placeholders (not used in mobile)
-    '__CAFE_GA_MEASUREMENT_ID__': JSON.stringify(''),
-    '__CAFE_GA_API_SECRET__': JSON.stringify(''),
-    '__CAFE_BAIDU_SITE_ID__': JSON.stringify('')
+    '__Cafe_GA_MEASUREMENT_ID__': JSON.stringify(''),
+    '__Cafe_GA_API_SECRET__': JSON.stringify(''),
+    '__Cafe_BAIDU_SITE_ID__': JSON.stringify('')
   },
 
   plugins: [react()],

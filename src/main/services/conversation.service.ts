@@ -81,7 +81,9 @@ interface Message {
   thoughts?: Thought[] | null  // null = stored separately, undefined = none, Array = loaded/inline
   thoughtsSummary?: ThoughtsSummary
   images?: ImageAttachment[]
+  files?: FileAttachment[]
   tokenUsage?: TokenUsage
+
   metadata?: {
     fileChanges?: FileChangesSummary
   }
@@ -737,6 +739,32 @@ export function addMessage(spaceId: string, conversationId: string, message: Omi
 }
 
 /**
+ * Update a specific message by ID.
+ * Used for asynchronous attachment enhancement after the user message is already saved.
+ */
+export function updateMessage(
+  spaceId: string,
+  conversationId: string,
+  messageId: string,
+  updates: Partial<Message>
+): Message | null {
+  const result = cachedRead(spaceId, conversationId)
+  if (!result) return null
+
+  const { conversation, filePath, conversationsDir } = result
+  const target = conversation.messages.find(message => message.id === messageId)
+  if (!target) return null
+
+  Object.assign(target, updates)
+  conversation.updatedAt = new Date().toISOString()
+
+  cachedWrite(conversationId, conversation, filePath, conversationsDir, spaceId)
+  debouncedUpdateIndexEntry(conversationsDir, spaceId, conversationId, toMeta(conversation))
+
+  return target
+}
+
+/**
  * Update the last message (for streaming completion and saving thoughts).
  *
  * If updates include thoughts:
@@ -814,6 +842,7 @@ export function updateLastMessage(
 
   return lastMessage
 }
+
 
 /**
  * Get thoughts for a specific message (lazy loading from .thoughts.json).

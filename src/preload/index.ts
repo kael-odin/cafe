@@ -1,4 +1,4 @@
-﻿/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
+/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
  * Preload Script - Exposes IPC to renderer
  */
 
@@ -101,6 +101,15 @@ export interface CafeAPI {
       data: string
       name?: string
       size?: number
+    }>
+    files?: Array<{
+      id: string
+      type: 'file'
+      mediaType: string
+      data: string
+      name?: string
+      size?: number
+      path?: string
     }>
     aiBrowserEnabled?: boolean  // Enable AI Browser tools
     thinkingEnabled?: boolean  // Enable extended thinking mode
@@ -485,7 +494,10 @@ const api: CafeAPI = {
     ipcRenderer.invoke('conversation:add-message', spaceId, conversationId, message),
   updateLastMessage: (spaceId, conversationId, updates) =>
     ipcRenderer.invoke('conversation:update-last-message', spaceId, conversationId, updates),
+  updateMessage: (spaceId, conversationId, messageId, updates) =>
+    ipcRenderer.invoke('conversation:update-message', spaceId, conversationId, messageId, updates),
   getMessageThoughts: (spaceId, conversationId, messageId) =>
+
     ipcRenderer.invoke('conversation:get-thoughts', spaceId, conversationId, messageId),
   toggleStarConversation: (spaceId, conversationId, starred) =>
     ipcRenderer.invoke('conversation:toggle-star', spaceId, conversationId, starred),
@@ -792,17 +804,32 @@ const platformInfo = {
 
 contextBridge.exposeInMainWorld('platform', platformInfo)
 
-// Expose basic electron IPC for overlay SPA
-// This is used by the overlay window which doesn't need the full Cafe API
+// Expose limited electron IPC for overlay SPA with channel whitelist
+const ALLOWED_IPC_CHANNELS = new Set([
+  'overlay:state',
+  'overlay:close',
+  'overlay:resize',
+  'overlay:position',
+])
+
 const electronAPI = {
   ipcRenderer: {
     on: (channel: string, callback: (...args: unknown[]) => void) => {
+      if (!ALLOWED_IPC_CHANNELS.has(channel)) {
+        console.warn('[Preload] Blocked IPC listen on unauthorized channel:', channel)
+        return
+      }
       ipcRenderer.on(channel, (_event, ...args) => callback(...args))
     },
     removeListener: (channel: string, callback: (...args: unknown[]) => void) => {
+      if (!ALLOWED_IPC_CHANNELS.has(channel)) return
       ipcRenderer.removeListener(channel, callback as (...args: unknown[]) => void)
     },
     send: (channel: string, ...args: unknown[]) => {
+      if (!ALLOWED_IPC_CHANNELS.has(channel)) {
+        console.warn('[Preload] Blocked IPC send on unauthorized channel:', channel)
+        return
+      }
       ipcRenderer.send(channel, ...args)
     }
   }

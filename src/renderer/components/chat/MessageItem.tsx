@@ -26,7 +26,7 @@ import { getToolIcon } from '../icons/ToolIcons'
 import { BrowserTaskCard, isBrowserTool } from '../tool/BrowserTaskCard'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { FileChangesFooter } from '../diff'
-import { MessageImages } from './ImageAttachmentPreview'
+import { MessageImages, MessageFiles } from './ImageAttachmentPreview'
 import { TokenUsageIndicator } from './TokenUsageIndicator'
 import { getToolFriendlyFormat } from './thought-utils'
 import type { Message, Thought, ThoughtsSummary } from '../../types'
@@ -314,6 +314,11 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
       {/* User message images (displayed before text) */}
       {isUser && message.images && message.images.length > 0 && (
         <MessageImages images={message.images} />
+      )}
+
+      {/* File attachments */}
+      {message.files && message.files.length > 0 && (
+        <MessageFiles files={message.files} />
       )}
 
       {/* Message content with streaming cursor */}

@@ -112,6 +112,26 @@ export function registerConversationHandlers(): void {
     }
   )
 
+  ipcMain.handle(
+    'conversation:update-message',
+    async (
+      _event,
+      spaceId: string,
+      conversationId: string,
+      messageId: string,
+      updates: Record<string, unknown>
+    ) => {
+      try {
+        const message = updateMessage(spaceId, conversationId, messageId, updates as any)
+        return { success: true, data: message }
+      } catch (error: unknown) {
+        const err = error as Error
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
+
   // Get thoughts for a specific message (lazy loading)
   ipcMain.handle(
     'conversation:get-thoughts',
@@ -130,6 +150,7 @@ export function registerConversationHandlers(): void {
       }
     }
   )
+
 
   // Toggle starred status on a conversation
   ipcMain.handle(

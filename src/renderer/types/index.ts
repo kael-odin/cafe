@@ -370,6 +370,40 @@ export interface ImageAttachment {
   size?: number;  // File size in bytes
 }
 
+// ============================================
+// File Attachment Types (for document parsing)
+// ============================================
+
+// Document media types supported by MinerU
+export type DocumentMediaType =
+  | 'application/pdf'
+  | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
+  | 'application/msword' // DOC
+  | 'text/plain' // TXT
+  | 'text/markdown' // MD
+  | 'application/json' // JSON
+  | 'text/csv' // CSV
+  | 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // XLSX
+  | 'application/vnd.ms-excel' // XLS
+
+// Document attachment for messages (parsed by MinerU)
+export interface FileAttachment {
+  id: string;
+  type: 'file';
+  mediaType: DocumentMediaType;
+  data: string;  // Base64 encoded file data
+  name?: string;  // Filename
+  size?: number;  // File size in bytes
+  path?: string;  // Local file path (if available)
+  extractedText?: string;  // Parsed/decoded plain text for model consumption
+  parseStatus?: 'pending' | 'parsed' | 'fallback' | 'failed';
+  parseError?: string;
+}
+
+
+// Union type for all attachments
+export type Attachment = ImageAttachment | FileAttachment
+
 // Content block types for multi-modal messages (matches Claude API)
 export interface TextContentBlock {
   type: 'text';
@@ -410,6 +444,7 @@ export interface Message {
   thoughtsSummary?: ThoughtsSummary;  // Present when thoughts are stored separately
   isStreaming?: boolean;
   images?: ImageAttachment[];  // Attached images
+  files?: FileAttachment[];  // Attached documents (PDF, DOCX, TXT, etc.)
   tokenUsage?: TokenUsage;  // Token usage for this assistant message
   metadata?: {
     fileChanges?: FileChangesSummary;  // Lightweight file changes for immediate display

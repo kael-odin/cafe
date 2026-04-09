@@ -12,6 +12,7 @@ import type {
   AnthropicContentBlock,
   AnthropicTextBlock,
   AnthropicImageBlock,
+  AnthropicDocumentBlock,
   AnthropicToolUseBlock,
   AnthropicToolResultBlock,
   AnthropicThinkingBlock,
@@ -69,6 +70,25 @@ export function anthropicImageToOpenAIChatImage(block: AnthropicImageBlock): Ope
 }
 
 /**
+ * Convert Anthropic document block to OpenAI Chat text part
+ * 
+ * Note: Most LLM APIs don't support native document blocks like Claude does.
+ * We convert the document to a text representation with metadata.
+ * The actual document parsing should be done by MinerU MCP before sending.
+ */
+export function anthropicDocumentToOpenAIChatText(block: AnthropicDocumentBlock): OpenAIChatTextPart {
+  // For APIs that don't support document blocks, we include a placeholder
+  // The actual document content should be extracted by MinerU before sending
+  const mediaType = block.source.media_type || 'application/octet-stream'
+  const dataLength = block.source.data?.length || 0
+  
+  return {
+    type: 'text',
+    text: `[Document attachment: ${mediaType}, ${Math.round(dataLength / 1024)}KB base64 data]`
+  }
+}
+
+/**
  * Convert Anthropic tool_use block to OpenAI Chat tool call
  */
 export function anthropicToolUseToOpenAIChatToolCall(block: AnthropicToolUseBlock): OpenAIChatToolCall {
@@ -94,6 +114,9 @@ export function anthropicBlockToOpenAIChatPart(
       return anthropicTextToOpenAIChatText(block)
     case 'image':
       return anthropicImageToOpenAIChatImage(block)
+    case 'document':
+      // Convert document to text placeholder for non-Claude APIs
+      return anthropicDocumentToOpenAIChatText(block)
     default:
       return null
   }
@@ -162,6 +185,22 @@ export function anthropicToolResultToResponsesFunctionCallOutput(
 }
 
 /**
+ * Convert Anthropic document block to OpenAI Responses input_text
+ * 
+ * Note: OpenAI Responses API doesn't support document blocks natively.
+ * We convert to a text placeholder with metadata.
+ */
+export function anthropicDocumentToResponsesInputText(block: AnthropicDocumentBlock): OpenAIResponsesInputText {
+  const mediaType = block.source.media_type || 'application/octet-stream'
+  const dataLength = block.source.data?.length || 0
+  
+  return {
+    type: 'input_text',
+    text: `[Document attachment: ${mediaType}, ${Math.round(dataLength / 1024)}KB base64 data]`
+  }
+}
+
+/**
  * Convert Anthropic content block to OpenAI Responses input content part
  * Returns null for blocks that should be handled separately (tool_use, tool_result)
  */
@@ -176,6 +215,9 @@ export function anthropicBlockToResponsesInputPart(
         : anthropicTextToResponsesOutputText(block) as unknown as OpenAIResponsesInputContentPart
     case 'image':
       return anthropicImageToResponsesInputImage(block)
+    case 'document':
+      // Convert document to text placeholder for APIs that don't support document blocks
+      return anthropicDocumentToResponsesInputText(block)
     case 'thinking':
       // Convert thinking to output_text for assistant role
       if (role === 'assistant' && block.thinking) {

@@ -21,7 +21,7 @@
 
 import { create } from 'zustand'
 import { api } from '../api'
-import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thought, AgentEventBase, ImageAttachment, CompactInfo, CanvasContext, AgentErrorType, PendingQuestion, Question, TaskStatus, PulseItem } from '../types'
+import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thought, AgentEventBase, ImageAttachment, FileAttachment, CompactInfo, CanvasContext, AgentErrorType, PendingQuestion, Question, TaskStatus, PulseItem } from '../types'
 import type { SessionInitInfo } from '../types/slash-command'
 import { PULSE_READ_GRACE_PERIOD_MS } from '../types'
 import { canvasLifecycle } from '../services/canvas-lifecycle'
@@ -141,7 +141,7 @@ interface ChatState {
   toggleStarConversation: (spaceId: string, conversationId: string, starred: boolean) => Promise<boolean>
 
   // Messaging
-  sendMessage: (content: string, images?: ImageAttachment[], aiBrowserEnabled?: boolean, thinkingEnabled?: boolean) => Promise<void>
+  sendMessage: (content: string, images?: ImageAttachment[], files?: FileAttachment[], aiBrowserEnabled?: boolean, thinkingEnabled?: boolean) => Promise<void>
   stopGeneration: (conversationId?: string) => Promise<void>
 
   // Tool approval
@@ -373,17 +373,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           return { spaceStates: newSpaceStates, conversationCache: newCache }
         })
 
-        // Warm up V2 Session for new conversation - non-blocking
-        // This ensures first message doesn't have cold start delay
-        try {
-          api.ensureSessionWarm(spaceId, newConversation.id)
-            .catch((error) => console.error('[ChatStore] Session warm up failed:', error))
-        } catch (error) {
-          console.error('[ChatStore] Failed to trigger session warm up:', error)
-        }
-
         return newConversation
       }
+
 
       return null
     } catch (error) {
@@ -505,38 +497,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const sessionState = response.data as { isActive: boolean; thoughts: Thought[]; spaceId?: string }
 
         if (sessionState.isActive && sessionState.thoughts.length > 0) {
-          console.log(`[ChatStore] Recovering ${sessionState.thoughts.length} thoughts for conversation ${conversationId}`)
-
-          set((state) => {
-            const newSessions = new Map(state.sessions)
-            const existingSession = newSessions.get(conversationId) || createEmptySessionState()
-
-            newSessions.set(conversationId, {
-              ...existingSession,
-              isGenerating: true,
-              isThinking: true,
-              thoughts: sessionState.thoughts
-            })
-
-            return { sessions: newSessions }
-          })
+          console.log(`[ChatStore] Active session detected for ${conversationId}, skipping runtime thought recovery to keep initial UI stable`)
         }
+
+
       }
     } catch (error) {
       console.error('[ChatStore] Failed to recover session state:', error)
     }
 
-    // Warm up V2 Session in background - non-blocking
-    // When user sends a message, V2 Session is ready to avoid delay
-    try {
-      api.ensureSessionWarm(currentSpaceId, conversationId)
-        .catch((error) => console.error('[ChatStore] Session warm up failed:', error))
-    } catch (error) {
-      console.error('[ChatStore] Failed to trigger session warm up:', error)
-    }
   },
 
   // Delete conversation
+
   deleteConversation: async (spaceId, conversationId) => {
     try {
       const response = await api.deleteConversation(spaceId, conversationId)
@@ -676,7 +649,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Send message (with optional images for multi-modal, optional AI Browser and thinking mode)
-  sendMessage: async (content, images, aiBrowserEnabled, thinkingEnabled) => {
+  sendMessage: async (content, images, files, aiBrowserEnabled, thinkingEnabled) => {
+    console.log('[ChatStore] sendMessage called')
+    console.log('[ChatStore] - content:', content ? 'yes' : 'no')
+    console.log('[ChatStore] - images:', images?.length || 0)
+    console.log('[ChatStore] - files:', files?.length || 0)
+    console.log('[ChatStore] - aiBrowserEnabled:', aiBrowserEnabled)
+    console.log('[ChatStore] - thinkingEnabled:', thinkingEnabled)
+    
     const conversation = get().getCurrentConversation()
     const conversationMeta = get().getCurrentConversationMeta()
     const { currentSpaceId } = get()
@@ -688,6 +668,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const conversationId = conversationMeta?.id || conversation?.id
     if (!conversationId) return
+
+    console.log('[ChatStore] Sending to conversation:', conversationId)
 
     try {
       // Initialize/reset session state for this conversation
@@ -715,7 +697,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         role: 'user',
         content,
         timestamp: new Date().toISOString(),
-        images: images  // Include images in message for display
+        images: images,  // Include images in message for display
+        files: files     // Include files in message for display
       }
 
       set((state) => {
@@ -776,12 +759,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }
 
-      // Send to agent (with images, AI Browser state, thinking mode, and canvas context)
+      // Send to agent (with images, files, AI Browser state, thinking mode, and canvas context)
       await api.sendMessage({
         spaceId: currentSpaceId,
         conversationId,
         message: content,
         images: images,  // Pass images to API
+        files: files,    // Pass files to API
         aiBrowserEnabled,  // Pass AI Browser state to API
         thinkingEnabled,  // Pass thinking mode to API
         canvasContext: buildCanvasContext()  // Pass canvas context for AI awareness

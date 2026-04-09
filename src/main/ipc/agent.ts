@@ -69,7 +69,7 @@ export function registerAgentHandlers(): void {
   // IPC Handlers
   // ============================================
 
-  // Send message to agent (with optional images for multi-modal, optional thinking mode)
+  // Send message to agent (with optional images/files, AI Browser, canvas context, optional thinking mode)
   ipcMain.handle(
     'agent:send-message',
     async (
@@ -87,7 +87,34 @@ export function registerAgentHandlers(): void {
           name?: string
           size?: number
         }>
-        thinkingEnabled?: boolean  // Enable extended thinking mode
+        files?: Array<{
+          id: string
+          type: 'file'
+          mediaType: string
+          data: string
+          name?: string
+          size?: number
+          path?: string
+        }>
+        aiBrowserEnabled?: boolean
+        thinkingEnabled?: boolean
+        canvasContext?: {
+          isOpen: boolean
+          tabCount: number
+          activeTab: {
+            type: string
+            title: string
+            url?: string
+            path?: string
+          } | null
+          tabs: Array<{
+            type: string
+            title: string
+            url?: string
+            path?: string
+            isActive: boolean
+          }>
+        }
       }
     ) => {
       try {

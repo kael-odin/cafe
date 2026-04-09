@@ -20,14 +20,16 @@
  */
 
 import { useState, useRef, useEffect, useMemo, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, FileText } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { getOnboardingPrompt } from '../onboarding/onboardingData'
 import { ImageAttachmentPreview } from './ImageAttachmentPreview'
+import { FileAttachmentPreview } from './FileAttachmentPreview'
 import { processImage, isValidImageType, formatFileSize } from '../../utils/imageProcessor'
-import type { ImageAttachment, Artifact } from '../../types'
+import { processDocumentFile, isValidDocumentType, getAcceptedFileTypes } from '../../utils/fileProcessor'
+import type { ImageAttachment, FileAttachment, Artifact } from '../../types'
 import { useTranslation } from '../../i18n'
 import { SlashCommandMenu, filterSlashCommands } from './SlashCommandMenu'
 import type { SlashCommandItem } from '../../types/slash-command'
@@ -74,7 +76,7 @@ function formatArtifactReference(relativePath: string): string {
 }
 
 interface InputAreaProps {
-  onSend: (content: string, images?: ImageAttachment[], thinkingEnabled?: boolean) => void
+  onSend: (content: string, images?: ImageAttachment[], files?: FileAttachment[], thinkingEnabled?: boolean) => void
   onStop: () => void
   isGenerating: boolean
   placeholder?: string
@@ -91,8 +93,19 @@ interface InputAreaProps {
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024  // 20MB max per image (before compression)
 const MAX_IMAGES = 10  // Max images per message
 
+// File constraints
+const MAX_FILE_SIZE = 50 * 1024 * 1024  // 50MB max per file
+const MAX_FILES = 5  // Max files per message
+
+const MIN_MENTION_VISIBLE_MS = 300
+
+
+
+
+
+
 // Error message type
-interface ImageError {
+interface FileError {
   id: string
   message: string
 }
@@ -103,9 +116,11 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [images, setImages] = useState<ImageAttachment[]>([])
+  const [files, setFiles] = useState<FileAttachment[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessingImages, setIsProcessingImages] = useState(false)
-  const [imageError, setImageError] = useState<ImageError | null>(null)
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false)
+  const [fileError, setFileError] = useState<FileError | null>(null)
   const [thinkingEnabled, setThinkingEnabled] = useState(true)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
   // Slash-command autocomplete
@@ -115,7 +130,13 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false)
   const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0)
   const [cursorPos, setCursorPos] = useState(0)
+  const mentionOpenedAtRef = useRef(0)
+  const mentionCloseTimerRef = useRef<number | null>(null)
+
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachMenuRef = useRef<HTMLDivElement>(null)
 
@@ -124,11 +145,11 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // Auto-clear error after 3 seconds
   useEffect(() => {
-    if (imageError) {
-      const timer = setTimeout(() => setImageError(null), 3000)
+    if (fileError) {
+      const timer = setTimeout(() => setFileError(null), 3000)
       return () => clearTimeout(timer)
     }
-  }, [imageError])
+  }, [fileError])
 
   // Close attachment menu when clicking outside
   useEffect(() => {
@@ -146,7 +167,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // Show error to user
   const showError = (message: string) => {
-    setImageError({ id: `err-${Date.now()}`, message })
+    setFileError({ id: `err-${Date.now()}`, message })
   }
 
   // Onboarding state
@@ -217,6 +238,53 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     setImages(prev => prev.filter(img => img.id !== id))
   }
 
+  // Add document files
+  const addFiles = async (fileList: File[]) => {
+    console.log('[InputArea] addFiles called with:', fileList.length, 'files')
+    const remainingSlots = MAX_FILES - files.length
+    console.log('[InputArea] Remaining slots:', remainingSlots)
+    if (remainingSlots <= 0) return
+
+    const filesToProcess = fileList.slice(0, remainingSlots)
+
+    // Show loading state
+    setIsProcessingFiles(true)
+
+    try {
+      const newFiles: FileAttachment[] = []
+      for (const file of filesToProcess) {
+        console.log('[InputArea] Processing file:', file.name, file.type, file.size)
+        try {
+          const fileAttachment = await processDocumentFile(file)
+          console.log('[InputArea] Processed file attachment:', fileAttachment?.id, fileAttachment?.name)
+          if (fileAttachment) {
+            newFiles.push(fileAttachment)
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : `处理文件失败: ${file.name}`
+          console.error('[InputArea] Error processing file:', errorMsg)
+          showError(errorMsg)
+        }
+      }
+
+      console.log('[InputArea] New files to add:', newFiles.length)
+      if (newFiles.length > 0) {
+        setFiles(prev => {
+          const updated = [...prev, ...newFiles]
+          console.log('[InputArea] Files state updated, total:', updated.length)
+          return updated
+        })
+      }
+    } finally {
+      setIsProcessingFiles(false)
+    }
+  }
+
+  // Remove file
+  const removeFile = (id: string) => {
+    setFiles(prev => prev.filter(file => file.id !== id))
+  }
+
   // Handle paste event
   const handlePaste = async (e: ClipboardEvent) => {
     const items = e.clipboardData?.items
@@ -242,26 +310,54 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   // Handle drag events
   const handleDragOver = (e: DragEvent) => {
     e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'copy'  // Show copy cursor instead of forbidden
     if (!isDragOver) setIsDragOver(true)
+    // Load mention artifacts on drag over for artifact reference support
+    if (mentionArtifacts.length === 0) {
+      ensureMentionArtifacts?.()
+    }
   }
 
   const handleDragLeave = (e: DragEvent) => {
     e.preventDefault()
-    setIsDragOver(false)
+    e.stopPropagation()
+    // Only set isDragOver to false if we're leaving the container entirely
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX
+    const y = e.clientY
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragOver(false)
+    }
   }
 
   // Handle artifact drag-drop reference insertion
   const handleDropReference = (rawPath: string): boolean => {
+    console.log('[InputArea] handleDropReference called with:', rawPath)
+    console.log('[InputArea] mentionArtifacts count:', mentionArtifacts.length)
+    
     const normalizedPath = normalizePathLike(rawPath)
+    console.log('[InputArea] normalizedPath:', normalizedPath)
+    
     // P1 fix: use string match instead of RegExp
     const target = mentionArtifacts.find(a => {
       const rp = normalizePathLike(a.relativePath || '')
-      return rp === normalizedPath || rp.endsWith('/' + normalizedPath)
+      const match = rp === normalizedPath || rp.endsWith('/' + normalizedPath)
+      if (match) {
+        console.log('[InputArea] Found match:', a.relativePath)
+      }
+      return match
     })
-    if (!target) return false
+    
+    if (!target) {
+      console.log('[InputArea] No match found in mentionArtifacts')
+      console.log('[InputArea] Available artifacts:', mentionArtifacts.map(a => a.relativePath))
+      return false
+    }
 
     const prefix = content && !content.endsWith(' ') && !content.endsWith('\n') ? ' ' : ''
     const nextContent = `${content}${prefix}${formatArtifactReference(target.relativePath)} `
+    console.log('[InputArea] Inserting reference:', nextContent)
     setContent(nextContent)
     handleMentionClose()
 
@@ -278,26 +374,78 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   const handleDrop = async (e: DragEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setIsDragOver(false)
 
-    // Check for artifact drag-drop first
-    const referencePath = e.dataTransfer.getData('text/cafe-artifact-relative-path') || e.dataTransfer.getData('text/plain')
+    console.log('[InputArea] handleDrop triggered')
+    console.log('[InputArea] dataTransfer.types:', e.dataTransfer.types)
+    console.log('[InputArea] dataTransfer.files.length:', e.dataTransfer.files.length)
+
+    // Check for artifact drag-drop first (from global variable set by ArtifactTree)
+    const dragArtifact = (window as any).__CAFE_DRAG_ARTIFACT__
+    let referencePath = e.dataTransfer.getData('text/cafe-artifact-relative-path') || e.dataTransfer.getData('text/plain')
+    
+    // If no dataTransfer data, try the global variable (workaround for react-arborist)
+    if (!referencePath && dragArtifact) {
+      referencePath = dragArtifact.relativePath
+      console.log('[InputArea] Using drag artifact from global:', referencePath)
+    }
+    
+    console.log('[InputArea] referencePath from dataTransfer:', referencePath)
+    
     if (referencePath && handleDropReference(referencePath)) {
+      console.log('[InputArea] Artifact reference handled successfully')
+      // Clean up global drag artifact
+      delete (window as any).__CAFE_DRAG_ARTIFACT__
       return
     }
 
-    const files = Array.from(e.dataTransfer.files).filter(file => isValidImageType(file))
+    // Clean up global drag artifact
+    delete (window as any).__CAFE_DRAG_ARTIFACT__
 
-    if (files.length > 0) {
-      await addImages(files)
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    console.log('[InputArea] Dropped files:', droppedFiles.map(f => f.name))
+    
+    // Separate images and documents
+    const imageFiles = droppedFiles.filter(file => isValidImageType(file))
+    const documentFiles = droppedFiles.filter(file => isValidDocumentType(file))
+
+    console.log('[InputArea] Image files:', imageFiles.length)
+    console.log('[InputArea] Document files:', documentFiles.length)
+
+    // Process images
+    if (imageFiles.length > 0) {
+      await addImages(imageFiles)
+    }
+
+    // Process documents
+    if (documentFiles.length > 0) {
+      await addFiles(documentFiles)
     }
   }
 
-  // Handle file input change
+  // Handle image input change
+  const handleImageInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = Array.from(e.target.files || [])
+    if (fileList.length > 0) {
+      await addImages(fileList)
+    }
+    // Reset input
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+  }
+
+  // Handle document input change
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length > 0) {
-      await addImages(files)
+    console.log('[InputArea] handleFileInputChange triggered')
+    console.log('[InputArea] e.target.files:', e.target.files)
+    const fileList = Array.from(e.target.files || [])
+    console.log('[InputArea] Files selected:', fileList.length, fileList.map(f => f.name))
+    if (fileList.length > 0) {
+      console.log('[InputArea] Calling addFiles...')
+      await addFiles(fileList)
+      console.log('[InputArea] addFiles completed, current files state will be updated')
     }
     // Reset input
     if (fileInputRef.current) {
@@ -307,6 +455,15 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // Handle image button click (from attachment menu)
   const handleImageButtonClick = () => {
+    setShowAttachMenu(false)
+    imageInputRef.current?.click()
+  }
+
+  // Handle file button click (from attachment menu)
+  const handleFileButtonClick = () => {
+    console.log('[InputArea] handleFileButtonClick called')
+    console.log('[InputArea] fileInputRef.current:', fileInputRef.current)
+    console.log('[InputArea] accepted types:', getAcceptedFileTypes())
     setShowAttachMenu(false)
     fileInputRef.current?.click()
   }
@@ -413,7 +570,34 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     })
   }
 
+  const updateMentionState = (value: string, selectionStart?: number | null) => {
+    const nextCursor = selectionStart ?? value.length
+    setCursorPos(nextCursor)
+
+    const nextMentionMatch = getMentionMatch(value, nextCursor)
+    if (nextMentionMatch) {
+      if (mentionArtifacts.length === 0) {
+        ensureMentionArtifacts?.()
+      }
+      setMentionMenuOpen(true)
+      mentionOpenedAtRef.current = Date.now()
+      setMentionSelectedIndex(0)
+      return
+    }
+
+    if (Date.now() - mentionOpenedAtRef.current < MIN_MENTION_VISIBLE_MS) {
+      return
+    }
+
+    handleMentionClose()
+
+  }
+
+
+
+
   const handleSlashSelect = (item: SlashCommandItem) => {
+
     const newContent = item.command + ' '
     setContent(newContent)
     setSlashMenuOpen(false)
@@ -434,14 +618,26 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   // Handle send
   const handleSend = () => {
     const textToSend = isOnboardingSendStep ? onboardingPrompt : content.trim()
-    const hasContent = textToSend || images.length > 0
+    const hasContent = textToSend || images.length > 0 || files.length > 0
+
+    console.log('[InputArea] handleSend called')
+    console.log('[InputArea] - text:', textToSend ? 'yes' : 'no')
+    console.log('[InputArea] - images:', images.length)
+    console.log('[InputArea] - files:', files.length)
+    console.log('[InputArea] - hasContent:', hasContent)
 
     if (hasContent && !isGenerating) {
-      onSend(textToSend, images.length > 0 ? images : undefined, thinkingEnabled)
+      onSend(
+        textToSend, 
+        images.length > 0 ? images : undefined, 
+        files.length > 0 ? files : undefined, 
+        thinkingEnabled
+      )
 
       if (!isOnboardingSendStep) {
         setContent('')
         setImages([])  // Clear images after send
+        setFiles([])   // Clear files after send
         handleMentionClose()
         handleSlashClose()
         // Don't reset thinkingEnabled - user might want to keep it on
@@ -460,7 +656,22 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // Handle key press
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!e.nativeEvent.isComposing && e.key === '@') {
+      setMentionMenuOpen(true)
+      mentionOpenedAtRef.current = Date.now()
+      setMentionSelectedIndex(0)
+
+      const target = e.currentTarget
+      const nextValue = `${target.value.slice(0, target.selectionStart ?? target.value.length)}@${target.value.slice(target.selectionEnd ?? target.value.length)}`
+      const nextCursor = (target.selectionStart ?? target.value.length) + 1
+      requestAnimationFrame(() => updateMentionState(nextValue, nextCursor))
+    }
+
+
+
+
     // Ignore key events during IME composition (Chinese/Japanese/Korean input)
+
     // This prevents Enter from sending the message while confirming IME candidates
     if (e.nativeEvent.isComposing) return
 
@@ -552,9 +763,10 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   }
 
   // In onboarding mode, can always send (prefilled content)
-  // Can send if has text OR has images (and not processing/generating)
-  const canSend = isOnboardingSendStep || ((content.trim().length > 0 || images.length > 0) && !isGenerating && !isProcessingImages)
+  // Can send if has text OR has images OR has files (and not processing/generating)
+  const canSend = isOnboardingSendStep || ((content.trim().length > 0 || images.length > 0 || files.length > 0) && !isGenerating && !isProcessingImages && !isProcessingFiles)
   const hasImages = images.length > 0
+  const hasFiles = files.length > 0
 
   const isInElectron = isElectron()
   // Mobile safe padding is handled by globals.css (#root bottom: var(--sab))
@@ -577,21 +789,33 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     >
       <div className={isCompact ? '' : 'max-w-3xl mx-auto'}>
         {/* Error toast notification */}
-        {imageError && (
+        {fileError && (
           <div className="mb-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20
             flex items-start gap-2 animate-fade-in">
             <AlertCircle size={16} className="text-destructive mt-0.5 flex-shrink-0" />
-            <span className="text-sm text-destructive flex-1">{imageError.message}</span>
+            <span className="text-sm text-destructive flex-1">{fileError.message}</span>
           </div>
         )}
 
-        {/* Hidden file input */}
+        {/* Hidden image input */}
         <input
-          ref={fileInputRef}
+          ref={imageInputRef}
           type="file"
           accept="image/jpeg,image/png,image/gif,image/webp"
           multiple
           className="hidden"
+          onChange={(e) => { void handleImageInputChange(e) }}
+        />
+
+        {/* Hidden document input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={getAcceptedFileTypes()}
+          multiple
+          tabIndex={-1}
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0 }}
           onChange={(e) => { void handleFileInputChange(e) }}
         />
 
@@ -621,32 +845,39 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
             />
           )}
           {/* @ mention autocomplete menu */}
-          {mentionMenuOpen && filteredMentionArtifacts.length > 0 && (
-            <div className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-popover border border-border rounded-[1rem] shadow-lg z-30 overflow-hidden panel-glass">
-              <div className="max-h-[336px] overflow-y-auto py-1">
-                {filteredMentionArtifacts.map((artifact, index) => {
-                  const isSelected = index === mentionSelectedIndex
-                  return (
-                    <button
-                      key={`${artifact.path}-${artifact.type}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        insertMention(artifact.relativePath)
-                      }}
-                      className={`w-full flex items-center gap-2 text-left min-h-[38px] border-l-2 ${isSelected ? 'bg-primary/10 border-primary pl-2.5 pr-3' : 'border-transparent pl-2.5 pr-3 hover:bg-muted/50'}`}
-                    >
-                      <span className="text-xs font-medium text-primary/80 shrink-0">
-                        {artifact.type === 'folder' ? t('Folder') : t('File')}
-                      </span>
-                      <span className="text-sm truncate flex-1 min-w-0">{artifact.relativePath}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-3 text-[10px] text-muted-foreground/40 select-none">
-                <span>↑↓ {t('navigate')}</span>
-                <span>↵ {t('select')}</span>
-                <span>Esc {t('close')}</span>
+          {mentionMenuOpen && (
+            <div className="absolute left-0 right-0 bottom-full mb-2 z-[120] pointer-events-none">
+              <div className="w-full max-w-md bg-popover border border-border rounded-[1rem] shadow-lg overflow-hidden panel-glass pointer-events-auto">
+                <div className="max-h-[336px] overflow-y-auto py-1">
+                  {filteredMentionArtifacts.length > 0 ? filteredMentionArtifacts.map((artifact, index) => {
+                    const isSelected = index === mentionSelectedIndex
+                    return (
+                      <button
+                        key={`${artifact.path}-${artifact.type}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          insertMention(artifact.relativePath)
+                        }}
+                        className={`w-full flex items-center gap-2 text-left min-h-[38px] border-l-2 ${isSelected ? 'bg-primary/10 border-primary pl-2.5 pr-3' : 'border-transparent pl-2.5 pr-3 hover:bg-muted/50'}`}
+                      >
+                        <span className="text-xs font-medium text-primary/80 shrink-0">
+                          {artifact.type === 'folder' ? t('Folder') : t('File')}
+                        </span>
+                        <span className="text-sm truncate flex-1 min-w-0">{artifact.relativePath}</span>
+                      </button>
+                    )
+                  }                ) : (
+                  <div className="px-3 py-3 text-sm text-muted-foreground">
+                    {mentionArtifacts.length === 0 ? t('Loading artifacts...') : t('Type more to filter artifacts, or use ↑↓ / Enter to select')}
+                  </div>
+                )}
+
+                </div>
+                <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-3 text-[10px] text-muted-foreground/40 select-none">
+                  <span>↑↓ {t('navigate')}</span>
+                  <span>↵ {t('select')}</span>
+                  <span>Esc {t('close')}</span>
+                </div>
               </div>
             </div>
           )}
@@ -658,11 +889,19 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
             />
           )}
 
-          {/* Image processing indicator */}
-          {isProcessingImages && (
+          {/* File preview area */}
+          {hasFiles && (
+            <FileAttachmentPreview
+              files={files}
+              onRemove={removeFile}
+            />
+          )}
+
+          {/* Processing indicator */}
+          {(isProcessingImages || isProcessingFiles) && (
             <div className="px-4 py-2 flex items-center gap-2 text-xs text-muted-foreground border-b border-border/30">
               <Loader2 size={14} className="animate-spin" />
-              <span>{t('Processing image...')}</span>
+              <span>{isProcessingImages ? t('Processing image...') : t('Processing file...')}</span>
             </div>
           )}
 
@@ -673,7 +912,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
               pointer-events-none z-10">
               <div className="flex flex-col items-center gap-2 text-primary/70">
                 <ImagePlus size={24} />
-                <span className="text-sm font-medium">{t('Drop to add images')}</span>
+                <span className="text-sm font-medium">{t('Drop to add images or documents')}</span>
               </div>
             </div>
           )}
@@ -687,11 +926,6 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
                 if (isOnboardingSendStep) return
                 const val = e.target.value
                 setContent(val)
-                // Open slash-command menu only when the input is a plausible command prefix.
-                // Short-circuits before any filter computation via maxCommandLen:
-                //   • starts with "/"
-                //   • no spaces or newlines (file paths, multi-line text are not commands)
-                //   • at most as long as the longest known command
                 const afterSlash = val.slice(1)
                 const looksLikeCommand =
                   slashCommands.length > 0 &&
@@ -702,30 +936,47 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
                 if (looksLikeCommand) {
                   setSlashMenuOpen(true)
                   setSlashSelectedIndex(0)
-                  setMentionMenuOpen(false)
+                  handleMentionClose()
                 } else {
                   setSlashMenuOpen(false)
-                }
-
-                // @ mention detection (P1 fix: track cursor position as state)
-                const nextCursor = e.target.selectionStart ?? val.length
-                setCursorPos(nextCursor)
-                const nextMentionMatch = getMentionMatch(val, nextCursor)
-                if (nextMentionMatch) {
-                  if (mentionArtifacts.length === 0) {
-                    ensureMentionArtifacts?.()
+                  updateMentionState(val, e.target.selectionStart)
+                  if (val.includes('@')) {
+                    console.log('[InputArea] mention input detected:', val)
                   }
-                  setMentionMenuOpen(true)
-                  setMentionSelectedIndex(0)
-                } else {
-                  setMentionMenuOpen(false)
                 }
               }}
-              onSelect={(e) => setCursorPos((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+
+              onSelect={(e) => updateMentionState((e.target as HTMLTextAreaElement).value, (e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+              onClick={(e) => updateMentionState((e.target as HTMLTextAreaElement).value, (e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+              onKeyUp={(e) => updateMentionState((e.target as HTMLTextAreaElement).value, (e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+
               onKeyDown={handleKeyDown}
               onPaste={(e) => { void handlePaste(e) }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+              onFocus={() => {
+                if (mentionCloseTimerRef.current) {
+                  window.clearTimeout(mentionCloseTimerRef.current)
+                  mentionCloseTimerRef.current = null
+                }
+                setIsFocused(true)
+                if (mentionArtifacts.length === 0) {
+                  ensureMentionArtifacts?.()
+                }
+                const textarea = textareaRef.current
+                if (textarea) {
+                  updateMentionState(textarea.value, textarea.selectionStart ?? textarea.value.length)
+                }
+              }}
+
+              onBlur={() => {
+                setIsFocused(false)
+                if (mentionCloseTimerRef.current) {
+                  window.clearTimeout(mentionCloseTimerRef.current)
+                }
+                mentionCloseTimerRef.current = window.setTimeout(() => {
+                  handleMentionClose()
+                }, 120)
+              }}
+
               placeholder={placeholder || t('Type a message, let Cafe help you...')}
               disabled={isGenerating}
               readOnly={isOnboardingSendStep}
@@ -750,8 +1001,11 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
             showAttachMenu={showAttachMenu}
             onAttachMenuToggle={() => setShowAttachMenu(!showAttachMenu)}
             onImageClick={handleImageButtonClick}
+            onFileClick={handleFileButtonClick}
             imageCount={images.length}
             maxImages={MAX_IMAGES}
+            fileCount={files.length}
+            maxFiles={MAX_FILES}
             attachMenuRef={attachMenuRef}
             canSend={canSend}
             onSend={handleSend}
@@ -781,8 +1035,11 @@ interface InputToolbarProps {
   showAttachMenu: boolean
   onAttachMenuToggle: () => void
   onImageClick: () => void
+  onFileClick: () => void
   imageCount: number
   maxImages: number
+  fileCount: number
+  maxFiles: number
   attachMenuRef: React.RefObject<HTMLDivElement>
   canSend: boolean
   onSend: () => void
@@ -801,8 +1058,11 @@ function InputToolbar({
   showAttachMenu,
   onAttachMenuToggle,
   onImageClick,
+  onFileClick,
   imageCount,
   maxImages,
+  fileCount,
+  maxFiles,
   attachMenuRef,
   canSend,
   onSend,
@@ -856,7 +1116,25 @@ function InputToolbar({
                     </span>
                   )}
                 </button>
-                {/* Future extensibility: add more options here */}
+                <button
+                  onClick={onFileClick}
+                  disabled={fileCount >= maxFiles}
+                  className={`w-full px-3 py-2 flex items-center gap-3 text-sm
+                    transition-colors duration-150
+                    ${fileCount >= maxFiles
+                      ? 'text-muted-foreground/40 cursor-not-allowed'
+                      : 'text-foreground hover:bg-muted/50'
+                    }
+                  `}
+                >
+                  <FileText size={16} className="text-muted-foreground" />
+                  <span>{t('Add document')}</span>
+                  {fileCount > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {fileCount}/{maxFiles}
+                    </span>
+                  )}
+                </button>
               </div>
             )}
           </div>

@@ -8,11 +8,16 @@ import { IncomingMessage } from 'http'
 import { v4 as uuidv4 } from 'uuid'
 import { validateToken } from './auth'
 
+const MESSAGE_RATE_LIMIT = 100
+const RATE_WINDOW_MS = 1000
+
 interface WebSocketClient {
   id: string
   ws: WebSocket
   authenticated: boolean
-  subscriptions: Set<string> // conversationIds this client is subscribed to
+  subscriptions: Set<string>
+  messageCount: number
+  rateWindowStart: number
 }
 
 // Store all connected clients
@@ -29,11 +34,13 @@ export function initWebSocket(server: any): WebSocketServer {
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const clientId = uuidv4()
-    const client: WebSocketClient = {
+  const client: WebSocketClient = {
       id: clientId,
       ws,
       authenticated: false,
-      subscriptions: new Set()
+      subscriptions: new Set(),
+      messageCount: 0,
+      rateWindowStart: Date.now()
     }
 
     clients.set(clientId, client)
@@ -41,6 +48,18 @@ export function initWebSocket(server: any): WebSocketServer {
 
     // Handle messages from client
     ws.on('message', (data: Buffer) => {
+      const now = Date.now()
+      if (now - client.rateWindowStart > RATE_WINDOW_MS) {
+        client.messageCount = 0
+        client.rateWindowStart = now
+      }
+      client.messageCount++
+      if (client.messageCount > MESSAGE_RATE_LIMIT) {
+        console.warn(`[WS] Rate limit exceeded for client ${client.id}`)
+        client.ws.close(1008, 'Rate limit exceeded')
+        return
+      }
+
       try {
         const message = JSON.parse(data.toString())
         handleClientMessage(client, message)

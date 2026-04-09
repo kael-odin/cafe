@@ -533,6 +533,8 @@ export async function ensureSessionWarm(
   // Get MCP servers from installed apps database (global + space-scoped)
   const dbMcpServers = getDbMcpServers(spaceId)
 
+
+
   // Build MCP servers config (must match sendMessage to avoid session rebuild)
   const mcpServers: Record<string, any> = dbMcpServers ? { ...dbMcpServers } : {}
   mcpServers['Cafe-apps'] = createCafeAppsMcpServer(spaceId)

@@ -119,6 +119,13 @@ export default function App() {
   // - Push: Listen for event (normal startup flow)
   // - Timeout: Fallback protection if something goes wrong
   useEffect(() => {
+    // Expose stores globally for debugging (dev only)
+    if (import.meta.env.DEV) {
+      ;(window as any).__APP_STORE__ = useAppStore
+      ;(window as any).__CHAT_STORE__ = useChatStore
+      ;(window as any).__SPACE_STORE__ = useSpaceStore
+    }
+    
     // Capacitor mode: skip Electron bootstrap flow entirely.
     // Initialization is triggered after the user selects a server from the list.
     if (isCapacitor()) {
@@ -591,8 +598,8 @@ export default function App() {
           // Update chatStore
           setChatCurrentSpace(spaceId)
 
-          // Give state time to update
-          await new Promise(resolve => setTimeout(resolve, 50))
+          // Yield to let React process state updates before continuing
+          await new Promise(resolve => setTimeout(resolve, 0))
         }
 
         // Step 2: Load conversations if needed

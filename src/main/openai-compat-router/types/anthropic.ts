@@ -57,6 +57,19 @@ export interface AnthropicThinkingBlock {
   signature?: string
 }
 
+// Document block type for PDF, DOCX, etc.
+export interface AnthropicBase64DocumentSource {
+  type: 'base64'
+  media_type: string  // e.g., 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  data: string
+}
+
+export interface AnthropicDocumentBlock {
+  type: 'document'
+  source: AnthropicBase64DocumentSource
+  cache_control?: AnthropicCacheControl
+}
+
 // Server-side tool blocks (for web search, etc.)
 export interface AnthropicServerToolUseBlock {
   type: 'server_tool_use'
@@ -80,6 +93,7 @@ export interface AnthropicWebSearchToolResultBlock {
 export type AnthropicContentBlock =
   | AnthropicTextBlock
   | AnthropicImageBlock
+  | AnthropicDocumentBlock
   | AnthropicToolUseBlock
   | AnthropicToolResultBlock
   | AnthropicThinkingBlock

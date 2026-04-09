@@ -8,9 +8,9 @@
  */
 
 import { useState } from 'react'
-import { X, Image as ImageIcon } from 'lucide-react'
+import { X, Image as ImageIcon, FileText, Book, FileJson, Table } from 'lucide-react'
 import { ImageViewer } from './ImageViewer'
-import type { ImageAttachment } from '../../types'
+import type { ImageAttachment, FileAttachment } from '../../types'
 import { useTranslation } from '../../i18n'
 
 interface ImageAttachmentPreviewProps {
@@ -199,5 +199,99 @@ export function MessageImages({ images }: MessageImageProps) {
         />
       )}
     </>
+  )
+}
+
+// ============================================
+// File Attachments in Message Bubble
+// ============================================
+
+/**
+ * Get Lucide icon component based on file type
+ */
+function getFileIconComponent(fileName: string) {
+  const ext = fileName.toLowerCase().split('.').pop()
+  
+  switch (ext) {
+    case 'md':
+      return Book
+    case 'json':
+      return FileJson
+    case 'csv':
+    case 'xls':
+    case 'xlsx':
+      return Table
+    default:
+      return FileText
+  }
+}
+
+/**
+ * Get display name for MIME type
+ */
+function getMimeTypeLabel(mimeType: string): string {
+  const labels: Record<string, string> = {
+    'application/pdf': 'PDF',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+    'application/msword': 'DOC',
+    'text/plain': 'TXT',
+    'text/markdown': 'MD',
+    'application/json': 'JSON',
+    'text/csv': 'CSV',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+    'application/vnd.ms-excel': 'XLS'
+  }
+  
+  return labels[mimeType] || 'FILE'
+}
+
+// Single file display in message bubble
+interface MessageFilesProps {
+  files: FileAttachment[]
+}
+
+export function MessageFiles({ files }: MessageFilesProps) {
+  const { t } = useTranslation()
+
+  if (!files || files.length === 0) return null
+
+  return (
+    <div className="mb-2 flex flex-wrap gap-2">
+      {files.map((file) => {
+        const IconComponent = getFileIconComponent(file.name || '')
+        const mimeTypeLabel = getMimeTypeLabel(file.mediaType)
+        
+        return (
+          <div
+            key={file.id}
+            className="flex items-center gap-2 px-3 py-2
+              bg-secondary/30 border border-border/50 rounded-lg
+              max-w-[240px]"
+          >
+            {/* File icon */}
+            <div className="flex-shrink-0 w-8 h-8 rounded-md bg-primary/10 
+              flex items-center justify-center">
+              <IconComponent size={16} className="text-primary" />
+            </div>
+            
+            {/* File info */}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-foreground truncate">
+                {file.name}
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="font-medium text-primary/70">{mimeTypeLabel}</span>
+                {file.size && (
+                  <>
+                    <span>•</span>
+                    <span>{formatFileSize(file.size)}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }

@@ -151,7 +151,7 @@ export async function startTunnel(localPort: number): Promise<string> {
         const binPath = await getBinaryPath()
 
         console.log('[Tunnel] Starting cloudflared...')
-        console.log('[Tunnel] Binary at:', binPath)
+        console.log('[Tunnel] Binary located')
 
         // Validate binary exists and is valid
         const validation = validateBinary(binPath)
@@ -184,7 +184,7 @@ export async function startTunnel(localPort: number): Promise<string> {
         } catch {
           console.log('[Tunnel] Could not detect proxy settings, assuming no proxy')
         }
-        console.log('[Tunnel] System proxy settings:', proxySettings)
+        console.log('[Tunnel] System proxy configured:', !!proxySettings.server)
 
         // Spawn cloudflared directly with quick tunnel args
         // Use --protocol http2 to avoid QUIC/UDP being blocked by firewalls/proxies

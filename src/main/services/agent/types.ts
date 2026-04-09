@@ -45,6 +45,24 @@ export interface ImageAttachment {
 }
 
 // ============================================
+// File Attachments
+// ============================================
+
+export interface FileAttachment {
+  id: string
+  type: 'file'
+  mediaType: string
+  data: string  // Base64 encoded
+  name?: string
+  size?: number
+  path?: string
+  extractedText?: string
+  parseStatus?: 'pending' | 'parsed' | 'fallback' | 'failed'
+  parseError?: string
+}
+
+
+// ============================================
 // Canvas Context
 // ============================================
 
@@ -80,6 +98,7 @@ export interface AgentRequest {
   message: string
   resumeSessionId?: string
   images?: ImageAttachment[]  // Optional images for multi-modal messages
+  files?: FileAttachment[]    // Optional files for document parsing
   aiBrowserEnabled?: boolean  // Enable AI Browser tools for this request
   thinkingEnabled?: boolean   // Enable extended thinking mode (maxThinkingTokens: 10240)
   model?: string              // Model to use (for future model switching)

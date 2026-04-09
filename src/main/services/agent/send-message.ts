@@ -28,7 +28,8 @@ import {
   getWorkingDir,
   getApiCredentials,
   getEnabledMcpServers,
-  getDbMcpServers
+  getDbMcpServers,
+  ensureMinerUServiceReady
 } from './helpers'
 import { emitAgentEvent } from './events'
 import { buildSystemPromptWithAIBrowser } from './system-prompt'
@@ -76,12 +77,13 @@ export async function sendMessage(
     message,
     resumeSessionId,
     images,
+    files,
     aiBrowserEnabled,
     thinkingEnabled,
     canvasContext
   } = request
 
-  console.log(`[Agent] sendMessage: conv=${conversationId}${images && images.length > 0 ? `, images=${images.length}` : ''}${aiBrowserEnabled ? ', AI Browser enabled' : ''}${thinkingEnabled ? ', thinking=ON' : ''}${canvasContext?.isOpen ? `, canvas tabs=${canvasContext.tabCount}` : ''}`)
+  console.log(`[Agent] sendMessage: conv=${conversationId}${images && images.length > 0 ? `, images=${images.length}` : ''}${files && files.length > 0 ? `, files=${files.length}` : ''}${aiBrowserEnabled ? ', AI Browser enabled' : ''}${thinkingEnabled ? ', thinking=ON' : ''}${canvasContext?.isOpen ? `, canvas tabs=${canvasContext.tabCount}` : ''}`)
 
   const config = getConfig()
   const workDir = getWorkingDir(spaceId)
@@ -95,12 +97,14 @@ export async function sendMessage(
   // Create session state (registered as active AFTER session is ready, see below)
   const sessionState = createSessionState(spaceId, conversationId, abortController)
 
-  // Add user message to conversation (with images if provided)
+  // Add user message to conversation (with images and files if provided)
   addMessage(spaceId, conversationId, {
     role: 'user',
     content: message,
-    images: images  // Include images in the saved message
+    images: images,  // Include images in the saved message
+    files: files     // Include files in the saved message
   })
+
 
   // Add placeholder for assistant response
   addMessage(spaceId, conversationId, {
@@ -110,6 +114,8 @@ export async function sendMessage(
   })
 
   try {
+
+
     // Get API credentials and resolve for SDK use (inside try/catch so errors reach frontend)
     const credentials = await getApiCredentials(config)
     console.log(`[Agent] sendMessage using: ${credentials.provider}, model: ${credentials.model}, prompt: ${config.agent?.promptProfile ?? 'Cafe'}`)
@@ -126,6 +132,8 @@ export async function sendMessage(
 
     // Get MCP servers from installed apps database (global + space-scoped, with override)
     const dbMcpServers = getDbMcpServers(spaceId)
+
+
 
     // Build MCP servers config (DB apps + built-in MCPs)
     const mcpServers: Record<string, any> = dbMcpServers ? { ...dbMcpServers } : {}
@@ -218,13 +226,18 @@ export async function sendMessage(
     }
     console.log(`[Agent][${conversationId}] ⏱️ V2 session ready: ${Date.now() - t0}ms`)
 
-    // Prepare message content (canvas context prefix + multi-modal images)
+    // Prepare message content (canvas context prefix + multi-modal images + files)
     if (images && images.length > 0) {
       console.log(`[Agent][${conversationId}] Message includes ${images.length} image(s)`)
     }
+    if (files && files.length > 0) {
+      console.log(`[Agent][${conversationId}] Message includes ${files.length} file(s): ${files.map(f => f.name).join(', ')}`)
+    }
     const canvasPrefix = formatCanvasContext(canvasContext)
     const messageWithContext = canvasPrefix + message
-    const messageContent = buildMessageContent(messageWithContext, images)
+    const messageContent = buildMessageContent(messageWithContext, images, files)
+
+
 
     // Process the stream using shared stream processor
     // The stream processor handles all streaming logic, renderer events,

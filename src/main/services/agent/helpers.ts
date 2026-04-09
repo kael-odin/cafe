@@ -349,6 +349,9 @@ export function getDbMcpServers(spaceId: string): Record<string, unknown> | null
   const mcpApps = manager.listEffectiveMcpApps(spaceId)
   if (mcpApps.length === 0) return null
 
+  // Import MCP command resolver
+  const { resolveMcpCommand, resolveMcpEnv } = require('../../apps/presets/resolve-mcp')
+
   const servers: Record<string, unknown> = {}
   for (const app of mcpApps) {
     if (app.status === 'paused') continue
@@ -367,7 +370,8 @@ export function getDbMcpServers(spaceId: string): Record<string, unknown> | null
       serverConfig.url = mcpServer.command
     } else {
       // stdio (default)
-      serverConfig.command = mcpServer.command
+      // Resolve command path for production environment
+      serverConfig.command = resolveMcpCommand(mcpServer.command)
       if (mcpServer.args?.length) serverConfig.args = mcpServer.args
       if (mcpServer.cwd) serverConfig.cwd = mcpServer.cwd
     }
@@ -381,14 +385,67 @@ export function getDbMcpServers(spaceId: string): Record<string, unknown> | null
           .map(([k, v]) => [k, String(v)])
       )
     }
-    if (Object.keys(mergedEnv).length > 0) {
-      serverConfig.env = mergedEnv
+    
+    // Resolve environment variables for production
+    const resolvedEnv = resolveMcpEnv(mergedEnv)
+    
+    if (Object.keys(resolvedEnv).length > 0) {
+      serverConfig.env = resolvedEnv
     }
 
     servers[app.specId] = serverConfig
   }
 
   return Object.keys(servers).length > 0 ? servers : null
+}
+
+export async function ensureMinerUServiceReady(spaceId: string): Promise<void> {
+  const manager = getAppManager()
+  if (!manager) return
+
+  const mineruApp = manager
+    .listEffectiveMcpApps(spaceId)
+    .find(app => app.specId === 'mineru' && app.status === 'active')
+
+  if (!mineruApp) return
+
+  const userConfig = mineruApp.userConfig ?? {}
+  const mode = String(userConfig.mode || 'local') as 'local' | 'remote'
+  const port = Number(userConfig.port || 18000)
+  const remoteUrl = userConfig.remote_url ? String(userConfig.remote_url) : undefined
+  const autoStart = userConfig.auto_start !== undefined ? String(userConfig.auto_start) !== 'false' : true
+  const backend = userConfig.backend ? String(userConfig.backend) : 'hybrid-auto-engine'
+  const defaultLang = userConfig.default_lang ? String(userConfig.default_lang) : 'ch'
+
+  const { getMinerUService } = await import('../mineru')
+  const mineru = getMinerUService()
+  const status = mineru.getStatus()
+
+  if (!status) {
+    await mineru.initialize({
+      mode,
+      port,
+      remoteUrl,
+      autoStart,
+      backend: backend as any,
+      defaultLang
+    })
+    return
+  }
+
+  const healthy = await mineru.isHealthy().catch(() => false)
+  if (!healthy && autoStart) {
+    await mineru.restart().catch(async () => {
+      await mineru.initialize({
+        mode,
+        port,
+        remoteUrl,
+        autoStart,
+        backend: backend as any,
+        defaultLang
+      })
+    })
+  }
 }
 
 /**

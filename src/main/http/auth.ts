@@ -3,6 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express'
+import { timingSafeEqual } from 'crypto'
 
 // Store active tokens (in memory, reset on restart)
 let accessToken: string | null = null
@@ -62,7 +63,14 @@ export function clearAccessToken(): void {
  */
 export function validateToken(token: string): boolean {
   if (!accessToken) return false
-  return token === accessToken
+  try {
+    const a = Buffer.from(token, 'utf8')
+    const b = Buffer.from(accessToken, 'utf8')
+    if (a.length !== b.length) return false
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -74,29 +82,14 @@ export function authMiddleware(
   res: Response,
   next: NextFunction
 ): void {
-  // Skip auth for static files, login page, and Vite module requests
-  if (
-    req.path === '/api/remote/login' ||
-    req.path === '/api/remote/status' ||
-    req.path.startsWith('/assets') ||
-    req.path === '/' ||
-    req.path === '/index.html' ||
-    req.path === '/favicon.ico' ||
-    // Skip Vite module requests (source files)
-    req.path.endsWith('.ts') ||
-    req.path.endsWith('.tsx') ||
-    req.path.endsWith('.js') ||
-    req.path.endsWith('.jsx') ||
-    req.path.endsWith('.css') ||
-    req.path.endsWith('.svg') ||
-    req.path.endsWith('.png') ||
-    req.path.endsWith('.jpg') ||
-    req.path.endsWith('.woff') ||
-    req.path.endsWith('.woff2') ||
-    req.path.includes('@vite') ||
-    req.path.includes('@fs') ||  // Vite file system access
-    req.path.includes('node_modules')
-  ) {
+  const publicPaths = ['/api/remote/login', '/api/remote/status']
+  const staticExtensions = ['.js', '.css', '.svg', '.png', '.jpg', '.ico', '.woff', '.woff2', '.map']
+  const isPublicApi = publicPaths.includes(req.path)
+  const isStaticAsset = req.path.startsWith('/assets') || staticExtensions.some(ext => req.path.endsWith(ext))
+  const isRoot = req.path === '/' || req.path === '/index.html' || req.path === '/favicon.ico'
+  const isViteDev = req.path.startsWith('/@vite') || req.path.startsWith('/@fs') || req.path.startsWith('/node_modules')
+
+  if (isPublicApi || isStaticAsset || isRoot || isViteDev) {
     return next()
   }
 

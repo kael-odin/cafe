@@ -1033,17 +1033,39 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     }
   ]
 
+  // Custom drag handler for external drops (chat input area)
+  // Must use onMouseDown to set up drag data before react-arborist's internal drag starts
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only handle left mouse button
+    if (e.button !== 0) return
+    
+    // Store the artifact path in a global variable for drag operations
+    // This is a workaround because react-arborist intercepts onDragStart
+    ;(window as any).__CAFE_DRAG_ARTIFACT__ = {
+      relativePath: data.relativePath,
+      name: data.name,
+      type: data.type
+    }
+    
+    // Also set up a one-time dragstart listener to set dataTransfer
+    const handleDragStart = (dragEvent: DragEvent) => {
+      if (dragEvent.dataTransfer) {
+        dragEvent.dataTransfer.setData('text/cafe-artifact-relative-path', data.relativePath)
+        dragEvent.dataTransfer.setData('text/plain', data.relativePath)
+        dragEvent.dataTransfer.effectAllowed = 'copy'
+      }
+      document.removeEventListener('dragstart', handleDragStart)
+    }
+    document.addEventListener('dragstart', handleDragStart, { once: true })
+  }, [data.relativePath, data.name, data.type])
+
   return (
     <ContextMenu items={menuItems}>
       <div
         ref={dragHandle}
         style={style}
         draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData('text/cafe-artifact-relative-path', data.relativePath)
-          e.dataTransfer.setData('text/plain', data.relativePath)
-          e.dataTransfer.effectAllowed = 'copy'
-        }}
+        onMouseDown={handleMouseDown}
         onClick={handleClick}
         onDoubleClick={handleDoubleClickFile}
         className={`

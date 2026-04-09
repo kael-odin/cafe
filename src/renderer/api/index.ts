@@ -379,6 +379,23 @@ export const api = {
     )
   },
 
+  updateMessage: async (
+    spaceId: string,
+    conversationId: string,
+    messageId: string,
+    updates: Record<string, unknown>
+  ): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.Cafe.updateMessage(spaceId, conversationId, messageId, updates)
+    }
+    return httpRequest(
+      'PUT',
+      `/api/spaces/${spaceId}/conversations/${conversationId}/messages/${messageId}`,
+      updates
+    )
+  },
+
+
   getMessageThoughts: async (
     spaceId: string,
     conversationId: string,
@@ -421,6 +438,15 @@ export const api = {
       data: string
       name?: string
       size?: number
+    }>
+    files?: Array<{
+      id: string
+      type: 'file'
+      mediaType: string
+      data: string
+      name?: string
+      size?: number
+      path?: string
     }>
     aiBrowserEnabled?: boolean  // Enable AI Browser tools
     thinkingEnabled?: boolean  // Enable extended thinking mode

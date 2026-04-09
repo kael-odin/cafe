@@ -146,6 +146,14 @@ export async function initAppManager(
     console.warn('[AppManager] Failed to prune uninstalled apps:', err)
   }
 
+  // Install pre-installed apps (async, non-blocking)
+  // These are bundled apps that come with Cafe-AI
+  import('../presets').then(({ installPreinstalledApps }) => {
+    installPreinstalledApps(service).catch(err => {
+      console.warn('[AppManager] Failed to install pre-installed apps:', err)
+    })
+  })
+
   const duration = performance.now() - start
   console.log(`[AppManager] Initialized in ${duration.toFixed(1)}ms`)
 

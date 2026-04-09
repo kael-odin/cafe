@@ -403,7 +403,7 @@ async function handleOpenAIConversion(
 
   if (debug) {
     console.log('[RequestHandler] Backend:', backendUrl)
-    console.log('[RequestHandler] API Key:', apiKey.slice(0, 8) + '...')
+    console.log('[RequestHandler] API Key:', apiKey ? '***' : '(empty)')
     console.log('[RequestHandler] ApiType:', apiType)
   }
 

@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿﻿﻿﻿/**
  * Cafe Adapter
  *
  * Implements the original Cafe registry protocol:
