@@ -1198,16 +1198,54 @@ class CanvasLifecycle {
    * Called when entering a space - clears tabs if switching to different space
    * This is the single point of control for Space isolation of Canvas state.
    * Returns true if tabs were cleared
+   *
+   * IMPORTANT: This method runs synchronously and resets isOpen BEFORE React renders,
+   * preventing the "canvas flash" bug where a stale isOpen=true from a previous space
+   * causes isCompact=true on the first render of a new space.
+   *
+   * When returning to the same space (e.g., from settings page), it syncs the real
+   * isOpen state to the store so canvas state is preserved correctly.
    */
   enterSpace(spaceId: string): boolean {
     const previousSpaceId = this.currentSpaceId
 
-    if (previousSpaceId && previousSpaceId !== spaceId && this.tabs.size > 0) {
-      // Switching to different space with existing tabs - clear all
-      console.log(`[CanvasLifecycle] Space switch: clearing ${this.tabs.size} tabs`)
-      this.closeAll()
+    if (previousSpaceId && previousSpaceId !== spaceId) {
+      // Switching to different space - synchronously reset canvas state
+      console.log(`[CanvasLifecycle] Space switch: ${previousSpaceId} → ${spaceId}, resetting canvas`)
+
+      // Destroy all browser views asynchronously (fire-and-forget)
+      for (const [, tab] of this.tabs) {
+        const hasBrowserView = (tab.type === 'browser' || tab.type === 'pdf') && tab.browserViewId
+        if (hasBrowserView) {
+          this.destroyBrowserView(tab.browserViewId!).catch(err =>
+            console.warn('[CanvasLifecycle] Failed to destroy BrowserView during space switch:', err)
+          )
+        }
+      }
+
+      // Synchronously clear tab state
+      this.tabs.clear()
+      this.activeTabId = null
+
+      // Synchronously reset isOpen to false — this is the critical fix
+      // Without this, the canvas store inherits stale isOpen=true from previous space
+      if (this.isOpen) {
+        this.isOpen = false
+        this.notifyOpenStateChange()
+      }
+
+      this.notifyTabsChange()
+      this.notifyActiveTabChange()
+
       this.currentSpaceId = spaceId
       return true
+    }
+
+    // Same space or first entry - sync real isOpen state to store
+    // This handles the case where the store initialized isOpen as false
+    // (to prevent flash) but canvas is actually open (e.g., returning from settings)
+    if (previousSpaceId === spaceId) {
+      this.notifyOpenStateChange()
     }
 
     this.currentSpaceId = spaceId
@@ -1239,8 +1277,11 @@ class CanvasLifecycle {
 
   onOpenStateChange(callback: OpenStateChangeCallback): () => void {
     this.openStateChangeCallbacks.add(callback)
-    // Immediately call with current state
-    callback(this.isOpen)
+    // NOTE: Do NOT immediately call with current state for isOpen.
+    // The canvas store initializes isOpen as false to prevent the "canvas flash" bug.
+    // If we fire the callback immediately with a stale isOpen=true (from a previous space),
+    // it would override the safe false initial value before enterSpace() runs.
+    // Future state changes will be delivered via notifyOpenStateChange().
     return () => this.openStateChangeCallbacks.delete(callback)
   }
 

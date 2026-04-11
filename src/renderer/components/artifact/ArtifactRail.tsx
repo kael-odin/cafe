@@ -107,7 +107,7 @@ export function ArtifactRail({
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   // Use external control if provided, otherwise internal state
   const isControlled = externalExpanded !== undefined
-  const [internalExpanded, setInternalExpanded] = useState(true)
+  const [internalExpanded, setInternalExpanded] = useState(externalExpanded ?? false)
   const isExpanded = isControlled ? externalExpanded : internalExpanded
 
   const [isLoading, setIsLoading] = useState(false)

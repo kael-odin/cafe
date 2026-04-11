@@ -191,6 +191,38 @@ export function registerAgentHandlers(): void {
     }
   )
 
+  // Get MinerU service status
+  ipcMain.handle('agent:mineru-status', async () => {
+    try {
+      const { getMinerUService } = await import('../services/mineru')
+      const mineru = getMinerUService()
+      const status = mineru.getStatus()
+      const healthy = status ? await mineru.isHealthy().catch(() => false) : false
+      return {
+        success: true,
+        data: {
+          initialized: !!status,
+          isRunning: status?.isRunning ?? false,
+          isHealthy: healthy,
+          mode: status?.mode ?? 'unknown',
+          url: status?.url ?? '',
+          pid: status?.pid,
+          error: status?.error,
+          lastHealthCheck: status?.lastHealthCheck
+            ? {
+                timestamp: status.lastHealthCheck.timestamp,
+                healthy: status.lastHealthCheck.healthy,
+                responseTime: status.lastHealthCheck.responseTime,
+              }
+            : null,
+        }
+      }
+    } catch (error: unknown) {
+      const err = error as Error
+      return { success: false, error: err.message }
+    }
+  })
+
   // Test MCP server connections
   ipcMain.handle('agent:test-mcp', async () => {
     try {

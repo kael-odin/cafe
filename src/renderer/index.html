@@ -106,6 +106,13 @@
     <script>
       // Global error handler for fatal errors before React mounts
       (function() {
+        // Drag-and-drop: The main process 'will-navigate' handler blocks file:// navigation
+        // from OS file drops, so we do NOT need a global capture-phase drop handler here.
+        // A capture-phase drop handler with preventDefault() would prevent React's onDrop
+        // in InputArea from receiving the event, breaking drag-and-drop file uploads.
+        // We only need dragover preventDefault to show the "copy" cursor instead of "forbidden".
+        document.addEventListener('dragover', function(e) { e.preventDefault(); }, true);
+
         window.__CAFE_APP_MOUNTED__ = false;
 
         function showFatalError(message) {

@@ -236,7 +236,7 @@ export async function scanDirectoryTreeShallow(
       }
       nodes.push(createTreeNodeFromDirent(entry, dirPath, rootPath, depth))
     }
-    console.log(`[Scanner] scanTreeShallow: ${dirPath} — ${entries.length} entries, ${nodes.length} visible, ${ignoredCount} ignored, ${hiddenCount} hidden`)
+    console.log(`[Scanner] scanTreeShallow: ${dirPath} -> ${entries.length} entries, ${nodes.length} visible, ${ignoredCount} ignored, ${hiddenCount} hidden`)
   } catch (error) {
     console.error(`[Scanner] Failed to scan tree ${dirPath}:`, error)
   }

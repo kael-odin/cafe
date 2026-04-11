@@ -40,11 +40,15 @@ class MinerUServiceManager {
       await this.destroy()
     }
 
-    this.config = config
-    this.processManager = new MinerUProcessManager(config)
+    const normalizedConfig: MinerUConfig = {
+      remoteUrl: config.remoteUrl || 'https://mineru.net',
+      ...config,
+    }
 
-    // Auto-start if configured
-    if (config.autoStart && config.mode === 'local') {
+    this.config = normalizedConfig
+    this.processManager = new MinerUProcessManager(normalizedConfig)
+
+    if (normalizedConfig.autoStart && normalizedConfig.mode === 'local') {
       await this.processManager.start()
     }
   }
@@ -126,7 +130,8 @@ class MinerUServiceManager {
       // Read file content
       const fs = await import('fs/promises')
       const fileBuffer = await fs.readFile(options.filePath)
-      const fileName = options.filePath.split(/[/\\]/).pop() || 'document'
+      // Use provided fileName (original name) or derive from filePath
+      const fileName = options.fileName || options.filePath.split(/[/\\]/).pop() || 'document'
       
       formData.append('files', new Blob([fileBuffer]), fileName)
       formData.append('lang_list', options.lang || this.config?.defaultLang || 'ch')
@@ -162,7 +167,7 @@ class MinerUServiceManager {
       }
     } catch (error) {
       return {
-        fileName: options.filePath.split(/[/\\]/).pop() || 'document',
+        fileName: options.fileName || options.filePath.split(/[/\\]/).pop() || 'document',
         error: error instanceof Error ? error.message : String(error),
       }
     }

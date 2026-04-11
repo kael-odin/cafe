@@ -99,7 +99,7 @@ export class WecomBotSource implements EventSourceAdapter, ImChannelAdapter {
 
     const config = this.configResolver()
     if (!config || !config.enabled || !config.botId || !config.secret) {
-      console.log('[WecomBotSource] Not configured or disabled 鈥?skipping start')
+      console.log('[WecomBotSource] Not configured or disabled - skipping start')
       return
     }
 

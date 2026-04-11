@@ -137,6 +137,16 @@ export interface CafeAPI {
   getSessionState: (conversationId: string) => Promise<IpcResponse>
   ensureSessionWarm: (spaceId: string, conversationId: string) => Promise<IpcResponse>
   testMcpConnections: () => Promise<{ success: boolean; servers: unknown[]; error?: string }>
+  getMinerUStatus: () => Promise<IpcResponse<{
+    initialized: boolean
+    isRunning: boolean
+    isHealthy: boolean
+    mode: string
+    url: string
+    pid?: number
+    error?: string
+    lastHealthCheck: { timestamp: number; healthy: boolean; responseTime?: number } | null
+  }>>
   answerQuestion: (data: { conversationId: string; id: string; answers: Record<string, string> }) => Promise<IpcResponse>
 
   // Event listeners
@@ -510,6 +520,7 @@ const api: CafeAPI = {
   getSessionState: (conversationId) => ipcRenderer.invoke('agent:get-session-state', conversationId),
   ensureSessionWarm: (spaceId, conversationId) => ipcRenderer.invoke('agent:ensure-session-warm', spaceId, conversationId),
   testMcpConnections: () => ipcRenderer.invoke('agent:test-mcp'),
+  getMinerUStatus: () => ipcRenderer.invoke('agent:mineru-status'),
   answerQuestion: (data) => ipcRenderer.invoke('agent:answer-question', data),
 
   // Event listeners

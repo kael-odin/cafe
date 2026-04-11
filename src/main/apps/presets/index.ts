@@ -8,6 +8,8 @@
 import type { AppSpec } from '../spec'
 import type { AppManagerService } from '../manager'
 
+const DEFAULT_REMOTE_MINERU_URL = 'https://mineru.net'
+
 /**
  * Pre-installed app definition.
  * Can be either a spec object or a path to a YAML file.
@@ -44,15 +46,14 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
       name: 'MinerU',
       version: '1.0.0',
       author: 'Cafe-AI Team',
-      description: 'PDF/DOCX/Image document parsing with Markdown output. Parse complex documents including formulas (LaTeX) and tables (HTML).',
+      description: 'Convert PDF and DOCX attachments to Markdown so AI can read them reliably.',
       icon: 'document-text',
       mcp_server: {
         transport: 'stdio',
-        // Command will be resolved at runtime based on environment
         command: 'mineru-mcp',
         args: [],
         env: {
-          MINERU_API_URL: 'http://localhost:18000'
+          MINERU_API_URL: DEFAULT_REMOTE_MINERU_URL
         }
       },
       config_schema: [
@@ -60,27 +61,28 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
           key: 'mode',
           label: 'Service Mode',
           type: 'select',
-          description: 'Choose between local or remote MinerU service',
+          description: 'Use the hosted MinerU service by default, or switch to a self-hosted endpoint.',
           required: true,
-          default: 'local',
+          default: 'remote',
           options: [
-            { label: 'Local (Run on this computer)', value: 'local' },
-            { label: 'Remote (Use remote API)', value: 'remote' }
+            { label: 'Remote (Recommended)', value: 'remote' },
+            { label: 'Local / Self-hosted', value: 'local' }
           ]
         },
         {
           key: 'remote_url',
           label: 'Remote API URL',
           type: 'url',
-          description: 'MinerU remote API endpoint (only for remote mode)',
+          description: 'Remote MinerU API endpoint used for PDF/DOCX parsing.',
           required: false,
-          placeholder: 'https://api.mineru.net'
+          default: DEFAULT_REMOTE_MINERU_URL,
+          placeholder: DEFAULT_REMOTE_MINERU_URL
         },
         {
           key: 'port',
           label: 'Local Service Port',
           type: 'number',
-          description: 'Port for local MinerU service (default: 18000)',
+          description: 'Port for a self-hosted MinerU service when local mode is selected.',
           required: false,
           default: 18000,
           placeholder: '18000'
@@ -89,7 +91,7 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
           key: 'backend',
           label: 'Parsing Backend',
           type: 'select',
-          description: 'Backend for document parsing',
+          description: 'Backend for PDF/DOCX to Markdown conversion.',
           required: true,
           default: 'hybrid-auto-engine',
           options: [
@@ -102,7 +104,7 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
           key: 'default_lang',
           label: 'Default Language',
           type: 'select',
-          description: 'Default language for document parsing',
+          description: 'Default language hint for document parsing.',
           required: true,
           default: 'ch',
           options: [
@@ -116,7 +118,7 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
           key: 'formula_enable',
           label: 'Enable Formula Parsing',
           type: 'boolean',
-          description: 'Parse mathematical formulas to LaTeX format',
+          description: 'Convert mathematical formulas to LaTeX when available.',
           required: false,
           default: true
         },
@@ -124,22 +126,22 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
           key: 'table_enable',
           label: 'Enable Table Parsing',
           type: 'boolean',
-          description: 'Parse tables to HTML format',
+          description: 'Convert tables to HTML when available.',
           required: false,
           default: true
         },
         {
           key: 'auto_start',
-          label: 'Auto-start Service',
+          label: 'Auto-start Local Service',
           type: 'boolean',
-          description: 'Automatically start local MinerU service when needed',
+          description: 'Only used in local mode to start a self-hosted MinerU service automatically.',
           required: false,
-          default: true
+          default: false
         }
       ],
       store: {
         category: 'document-processing',
-        tags: ['pdf', 'document-parsing', 'ocr', 'markdown', 'formula', 'table'],
+        tags: ['pdf', 'docx', 'document-parsing', 'markdown'],
         featured: true,
         homepage: 'https://github.com/opendatalab/MinerU',
         repository: 'https://github.com/opendatalab/MinerU',
@@ -148,67 +150,68 @@ export const PREINSTALLED_APPS: PreinstalledApp[] = [
       i18n: {
         'zh-CN': {
           name: 'MinerU 文档解析',
-          description: 'PDF/DOCX/图片文档解析，输出 Markdown 格式。支持公式（LaTeX）和表格（HTML）识别。',
+          description: '将 PDF 和 DOCX 附件转换为 Markdown，供 AI 稳定阅读。',
           config_schema: {
             mode: {
               label: '服务模式',
-              description: '选择本地或远程 MinerU 服务',
+              description: '默认使用远程 MinerU 服务，也可以切换到自托管服务。',
               options: {
-                local: '本地（在本机运行）',
-                remote: '远程（使用远程 API）'
+                remote: '远程（推荐）',
+                local: '本地 / 自托管'
               }
             },
             remote_url: {
               label: '远程 API 地址',
-              description: 'MinerU 远程 API 端点（仅远程模式）'
+              description: '用于 PDF/DOCX 解析的远程 MinerU API 地址。'
             },
             port: {
               label: '本地服务端口',
-              description: '本地 MinerU 服务端口（默认：18000）'
+              description: '在本地 / 自托管模式下使用的 MinerU 服务端口。'
             },
             backend: {
               label: '解析后端',
-              description: '文档解析后端',
+              description: '用于 PDF/DOCX 转 Markdown 的解析后端。',
               options: {
                 'hybrid-auto-engine': '混合自动引擎（推荐）',
-                'pipeline': '管道模式（通用）',
+                pipeline: '管道模式（通用）',
                 'vlm-auto-engine': 'VLM 自动引擎（中英文）'
               }
             },
             default_lang: {
               label: '默认语言',
-              description: '文档解析的默认语言',
+              description: '文档解析的默认语言提示。',
               options: {
-                'ch': '中文/英文',
-                'en': '英文',
-                'korean': '韩文',
-                'japan': '日文'
+                ch: '中文/英文',
+                en: '英文',
+                korean: '韩文',
+                japan: '日文'
               }
             },
             formula_enable: {
               label: '启用公式解析',
-              description: '将数学公式解析为 LaTeX 格式'
+              description: '可用时将数学公式转换为 LaTeX。'
             },
             table_enable: {
               label: '启用表格解析',
-              description: '将表格解析为 HTML 格式'
+              description: '可用时将表格转换为 HTML。'
             },
             auto_start: {
-              label: '自动启动服务',
-              description: '需要时自动启动本地 MinerU 服务'
+              label: '自动启动本地服务',
+              description: '仅在本地模式下自动启动自托管 MinerU 服务。'
             }
           }
         }
       }
     },
     defaultConfig: {
-      mode: 'local',
+      mode: 'remote',
+      remote_url: DEFAULT_REMOTE_MINERU_URL,
       port: 18000,
       backend: 'hybrid-auto-engine',
       default_lang: 'ch',
       formula_enable: true,
       table_enable: true,
-      auto_start: true
+      auto_start: false
     },
     global: true
   }
@@ -227,14 +230,14 @@ export async function installPreinstalledApps(appManager: AppManagerService): Pr
 
   for (const app of PREINSTALLED_APPS) {
     try {
-      // Check if already installed
-      const existing = appManager.getBySpecAndSpace(app.id, null)
+      const specName = typeof app.spec === 'string' ? app.id : app.spec.name
+      const existing = appManager.listApps({ spaceId: null })
+        .find(installed => installed.specId === specName && installed.status !== 'uninstalled')
       if (existing) {
         console.log(`[PreinstalledApps] ${app.id} already installed, skipping`)
         continue
       }
 
-      // Install the app
       const spec = typeof app.spec === 'string' ? await loadSpecFromYaml(app.spec) : app.spec
       const appId = await appManager.install(null, spec, app.defaultConfig)
 
@@ -255,8 +258,10 @@ export async function installPreinstalledApps(appManager: AppManagerService): Pr
  */
 async function loadSpecFromYaml(yamlPath: string): Promise<AppSpec> {
   const { parse: parseYaml } = await import('yaml')
-  const { readFileSync } = await import('fs')
+  const { readFile } = await import('fs/promises')
+  const { join } = await import('path')
 
-  const content = readFileSync(yamlPath, 'utf-8')
+  const filePath = join(process.cwd(), yamlPath)
+  const content = await readFile(filePath, 'utf-8')
   return parseYaml(content) as AppSpec
 }

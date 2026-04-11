@@ -99,8 +99,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
   })
 
   return {
-    // Initial state - synchronized from canvasLifecycle singleton
-    isOpen: canvasLifecycle.getIsOpen(),
+    // CRITICAL: isOpen must always initialize as false to prevent "canvas flash" bug.
+    // The onOpenStateChange callback fires immediately with the current lifecycle state,
+    // which may be stale (e.g., isOpen=true from a previous space). If we initialize
+    // from canvasLifecycle.getIsOpen(), the first React render sees isOpen=true, causing
+    // isCompact=true and a visible flash before enterSpace() resets it.
+    // By starting as false, the first render is always correct (no canvas = no flash),
+    // and the callback will update to true only if canvas is genuinely open.
+    isOpen: false,
     tabs: canvasLifecycle.getTabs(),
     activeTabId: canvasLifecycle.getActiveTabId(),
     isTransitioning: canvasLifecycle.getIsTransitioning(),

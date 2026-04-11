@@ -101,6 +101,12 @@ export class MinerUProcessManager extends EventEmitter {
         // Handle process events
         this.process.on('error', (error) => {
           console.error('[MinerU] Process error:', error)
+          const message = error.message
+          // Provide helpful error message when executable not found
+          if (message.includes('ENOENT') || message.includes('not found') || message.includes('spawn')) {
+            console.error(`[MinerU] Failed to start: '${executable}' not found in PATH. ` +
+              `Please install MinerU: pip install mineru (or pip install mineru-api)`)
+          }
           this.status.error = error.message
           this.emit('error', error)
           reject(error)

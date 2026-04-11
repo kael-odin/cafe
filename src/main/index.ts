@@ -381,6 +381,17 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // Prevent navigation from file drag-and-drop (OS file explorer drag can trigger navigation)
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Allow normal app navigation (dev server HMR, initial load)
+    if (url.startsWith('http://localhost') || url.startsWith('https://localhost') || url.startsWith('file://')) {
+      return
+    }
+    // Block all other navigations (e.g., file:// from OS drag, or accidental URL navigation)
+    event.preventDefault()
+    console.warn('[Main] Blocked navigation to:', url)
+  })
+
   // Load the renderer
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])

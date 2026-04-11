@@ -26,7 +26,7 @@ import {
   getOnboardingPrompt,
 } from '../onboarding/onboardingData'
 import { api } from '../../api'
-import type { ImageAttachment, FileAttachment, Artifact } from '../../types'
+import type { ImageAttachment, FileAttachment } from '../../types'
 import type { SlashCommandItem } from '../../types/slash-command'
 import { useTranslation } from '../../i18n'
 
@@ -62,51 +62,6 @@ export function ChatView({ isCompact = false }: ChatViewProps): JSX.Element {
   const [mockUserMessage, setMockUserMessage] = useState<string | null>(null)
   const [mockAiResponse, setMockAiResponse] = useState<string | null>(null)
   const [mockStreamingContent, setMockStreamingContent] = useState<string>('')
-  // Artifact list for @ mention suggestions in InputArea
-  const [mentionArtifacts, setMentionArtifacts] = useState<Artifact[]>([])
-  const mentionArtifactsRequestedRef = useRef(false)
-
-  // Reset on space switch. Artifact suggestions are loaded lazily on first '@'
-  // interaction instead of immediately when a space opens.
-  useEffect(() => {
-    mentionArtifactsRequestedRef.current = false
-    setMentionArtifacts([])
-  }, [currentSpace?.id])
-
-  const ensureMentionArtifacts = useCallback(() => {
-    if (!currentSpace?.id) {
-      console.log('[ChatView] ensureMentionArtifacts: no currentSpace')
-      return
-    }
-
-    if (mentionArtifactsRequestedRef.current) {
-      console.log('[ChatView] ensureMentionArtifacts: already requested')
-      return
-    }
-
-    mentionArtifactsRequestedRef.current = true
-    console.log('[ChatView] Loading mention artifacts for space:', currentSpace.id)
-
-    api.listArtifacts(currentSpace.id, 1000).then(response => {
-      if (response.success && response.data) {
-        const artifacts = response.data as Artifact[]
-        console.log('[ChatView] Loaded mention artifacts:', artifacts.length)
-        setMentionArtifacts(artifacts)
-      } else {
-        console.warn('[ChatView] Failed to load mention artifacts:', response.error)
-        mentionArtifactsRequestedRef.current = false
-      }
-    }).catch(error => {
-      mentionArtifactsRequestedRef.current = false
-      console.error('[ChatView] Failed to load mention artifacts:', error)
-    })
-  }, [currentSpace?.id])
-
-  useEffect(() => {
-    if (currentSpace?.id) {
-      ensureMentionArtifacts()
-    }
-  }, [currentSpace?.id, ensureMentionArtifacts])
 
   // Clear mock state when onboarding completes
   useEffect(() => {
@@ -313,12 +268,6 @@ export function ChatView({ isCompact = false }: ChatViewProps): JSX.Element {
 
   // Handle send (with optional images for multi-modal messages, optional thinking mode)
   const handleSend = (content: string, images?: ImageAttachment[], files?: FileAttachment[], thinkingEnabled?: boolean): void => {
-    console.log('[ChatView] handleSend called')
-    console.log('[ChatView] - content:', content ? 'yes' : 'no')
-    console.log('[ChatView] - images:', images?.length || 0)
-    console.log('[ChatView] - files:', files?.length || 0)
-    console.log('[ChatView] - thinkingEnabled:', thinkingEnabled)
-    
     // In onboarding mode, intercept and play mock response
     if (isOnboarding && currentStep === 'send-message') {
       void handleOnboardingSend()
@@ -327,12 +276,10 @@ export function ChatView({ isCompact = false }: ChatViewProps): JSX.Element {
 
     // Can send if has text OR has images OR has files
     if ((!content.trim() && (!images || images.length === 0) && (!files || files.length === 0)) || isGenerating) {
-      console.log('[ChatView] Cannot send - no content or generating')
       return
     }
 
     // Pass both AI Browser and thinking state to sendMessage
-    console.log('[ChatView] Calling sendMessage with files:', files?.length || 0)
     void sendMessage(content, images, files, aiBrowserEnabled, thinkingEnabled)
   }
 
@@ -438,8 +385,6 @@ export function ChatView({ isCompact = false }: ChatViewProps): JSX.Element {
         placeholder={isCompact ? t('Continue conversation...') : (currentSpace?.isTemp ? t('Say something to Cafe...') : t('Continue conversation...'))}
         isCompact={isCompact}
         slashCommands={slashCommands}
-        mentionArtifacts={mentionArtifacts}
-        ensureMentionArtifacts={ensureMentionArtifacts}
       />
     </div>
   )

@@ -77,7 +77,7 @@ export function decryptString(value: string): string {
 export function encryptTokens<T extends Record<string, any>>(obj: T): T {
   if (!obj) return obj
 
-  const result = { ...obj }
+  const result = { ...obj } as Record<string, any>
 
   if (result.accessToken && typeof result.accessToken === 'string') {
     result.accessToken = encryptString(result.accessToken)
@@ -87,7 +87,7 @@ export function encryptTokens<T extends Record<string, any>>(obj: T): T {
     result.refreshToken = encryptString(result.refreshToken)
   }
 
-  return result
+  return result as T
 }
 
 /**
@@ -97,7 +97,7 @@ export function encryptTokens<T extends Record<string, any>>(obj: T): T {
 export function decryptTokens<T extends Record<string, any>>(obj: T): T {
   if (!obj) return obj
 
-  const result = { ...obj }
+  const result = { ...obj } as Record<string, any>
 
   if (result.accessToken && typeof result.accessToken === 'string') {
     result.accessToken = decryptString(result.accessToken)
@@ -107,5 +107,5 @@ export function decryptTokens<T extends Record<string, any>>(obj: T): T {
     result.refreshToken = decryptString(result.refreshToken)
   }
 
-  return result
+  return result as T
 }

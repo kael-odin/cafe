@@ -50,16 +50,16 @@ function getMimeTypeLabel(mimeType: string): string {
   return labels[mimeType] || 'FILE'
 }
 
-function getParseStatusLabel(file: FileAttachment): string | null {
+function getParseStatusLabel(file: FileAttachment, t: (key: string) => string): { label: string; className: string } | null {
   switch (file.parseStatus) {
     case 'parsed':
-      return '已解析'
+      return { label: t('Parsed'), className: 'text-emerald-600 dark:text-emerald-400' }
     case 'fallback':
-      return '已附加'
+      return { label: t('MinerU unavailable'), className: 'text-amber-500 dark:text-amber-400' }
     case 'failed':
-      return '解析失败'
+      return { label: t('Parse failed'), className: 'text-destructive' }
     case 'pending':
-      return '解析中'
+      return { label: t('Parsing'), className: 'text-emerald-600 dark:text-emerald-400' }
     default:
       return null
   }
@@ -101,14 +101,15 @@ export function FileAttachmentPreview({ files, onRemove }: FileAttachmentPreview
                   <span className="font-medium text-primary/70">{mimeTypeLabel}</span>
                   <span>•</span>
                   <span>{formatFileSize(file.size || 0)}</span>
-                  {getParseStatusLabel(file) && (
-                    <>
-                      <span>•</span>
-                      <span className={file.parseStatus === 'failed' ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}>
-                        {getParseStatusLabel(file)}
-                      </span>
-                    </>
-                  )}
+                  {(() => {
+                    const statusInfo = getParseStatusLabel(file, t)
+                    return statusInfo ? (
+                      <>
+                        <span>•</span>
+                        <span className={statusInfo.className}>{statusInfo.label}</span>
+                      </>
+                    ) : null
+                  })()}
                 </div>
               </div>
               

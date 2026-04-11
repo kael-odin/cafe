@@ -4,50 +4,47 @@
 spec_version: "1"
 type: mcp
 
-# App Identity
 name: MinerU
 version: "1.0.0"
 author: Cafe-AI Team
 description: |
-  PDF/DOCX/Image document parsing with Markdown output.
-  Parse complex documents including formulas (LaTeX) and tables (HTML).
-  Supports both local and remote deployment modes.
+  Convert PDF and DOCX attachments to Markdown so AI can read them reliably.
+  Remote MinerU service is the default path for the desktop app.
 
 icon: document-text
 
-# MCP Server Configuration
 mcp_server:
   transport: stdio
   command: mineru-mcp
   args: []
   env:
-    MINERU_API_URL: "http://localhost:18000"
+    MINERU_API_URL: "https://mineru.net"
 
-# User Configuration Schema
 config_schema:
   - key: mode
     label: Service Mode
     type: select
-    description: Choose between local or remote MinerU service
+    description: Use the hosted MinerU service by default, or switch to a self-hosted endpoint.
     required: true
-    default: local
+    default: remote
     options:
-      - label: Local (Run on this computer)
-        value: local
-      - label: Remote (Use remote API)
+      - label: Remote (Recommended)
         value: remote
+      - label: Local / Self-hosted
+        value: local
 
   - key: remote_url
     label: Remote API URL
     type: url
-    description: MinerU remote API endpoint (only for remote mode)
+    description: Remote MinerU API endpoint used for PDF/DOCX parsing.
     required: false
-    placeholder: "https://api.mineru.net"
+    default: "https://mineru.net"
+    placeholder: "https://mineru.net"
 
   - key: port
     label: Local Service Port
     type: number
-    description: Port for local MinerU service (default: 18000)
+    description: Port for a self-hosted MinerU service when local mode is selected.
     required: false
     default: 18000
     placeholder: "18000"
@@ -56,7 +53,7 @@ config_schema:
     label: Parsing Backend
     type: select
     description: |
-      Backend for document parsing:
+      Backend for PDF/DOCX to Markdown conversion:
       - hybrid-auto-engine: High accuracy, multi-language (recommended)
       - pipeline: General purpose, hallucination-free
       - vlm-auto-engine: High accuracy, Chinese/English only
@@ -73,7 +70,7 @@ config_schema:
   - key: default_lang
     label: Default Language
     type: select
-    description: Default language for document parsing
+    description: Default language hint for document parsing.
     required: true
     default: ch
     options:
@@ -89,64 +86,59 @@ config_schema:
   - key: formula_enable
     label: Enable Formula Parsing
     type: boolean
-    description: Parse mathematical formulas to LaTeX format
+    description: Convert mathematical formulas to LaTeX when available.
     required: false
     default: true
 
   - key: table_enable
     label: Enable Table Parsing
     type: boolean
-    description: Parse tables to HTML format
+    description: Convert tables to HTML when available.
     required: false
     default: true
 
   - key: auto_start
-    label: Auto-start Service
+    label: Auto-start Local Service
     type: boolean
-    description: Automatically start local MinerU service when needed
+    description: Only used in local mode to start a self-hosted MinerU service automatically.
     required: false
-    default: true
+    default: false
 
-# Store Metadata
 store:
   category: document-processing
   tags:
     - pdf
+    - docx
     - document-parsing
-    - ocr
     - markdown
-    - formula
-    - table
   featured: true
   homepage: "https://github.com/opendatalab/MinerU"
   repository: "https://github.com/opendatalab/MinerU"
   license: MIT
 
-# Internationalization
 i18n:
   zh-CN:
     name: MinerU 文档解析
     description: |
-      PDF/DOCX/图片文档解析，输出 Markdown 格式。
-      支持公式（LaTeX）和表格（HTML）识别。
-      支持本地和远程两种部署模式。
+      将 PDF 和 DOCX 附件转换为 Markdown，供 AI 稳定阅读。
+      桌面端默认使用远程 MinerU 服务。
     config_schema:
       mode:
         label: 服务模式
-        description: 选择本地或远程 MinerU 服务
+        description: 默认使用远程 MinerU 服务，也可以切换到自托管服务。
         options:
-          local: 本地（在本机运行）
-          remote: 远程（使用远程 API）
+          remote: 远程（推荐）
+          local: 本地 / 自托管
       remote_url:
         label: 远程 API 地址
-        description: MinerU 远程 API 端点（仅远程模式）
+        description: 用于 PDF/DOCX 解析的远程 MinerU API 地址。
       port:
         label: 本地服务端口
-        description: 本地 MinerU 服务端口（默认：18000）
+        description: 在本地 / 自托管模式下使用的 MinerU 服务端口。
       backend:
         label: 解析后端
         description: |
-          文档解析后端：
+          用于 PDF/DOCX 转 Markdown 的解析后端：
           - hybrid-auto-engine: 高精度，多语言（推荐）
           - pipeline: 通用型，无幻觉
           - vlm-auto-engine: 高精度，仅中英文
@@ -156,7 +148,7 @@ i18n:
           vlm-auto-engine: VLM 自动引擎（中英文）
       default_lang:
         label: 默认语言
-        description: 文档解析的默认语言
+        description: 文档解析的默认语言提示。
         options:
           ch: 中文/英文
           en: 英文
@@ -164,37 +156,36 @@ i18n:
           japan: 日文
       formula_enable:
         label: 启用公式解析
-        description: 将数学公式解析为 LaTeX 格式
+        description: 可用时将数学公式转换为 LaTeX。
       table_enable:
         label: 启用表格解析
-        description: 将表格解析为 HTML 格式
+        description: 可用时将表格转换为 HTML。
       auto_start:
-        label: 自动启动服务
-        description: 需要时自动启动本地 MinerU 服务
+        label: 自动启动本地服务
+        description: 仅在本地模式下自动启动自托管 MinerU 服务。
 
   en-US:
     name: MinerU Document Parser
     description: |
-      PDF/DOCX/Image document parsing with Markdown output.
-      Supports formula (LaTeX) and table (HTML) extraction.
-      Supports both local and remote deployment modes.
+      Convert PDF and DOCX attachments to Markdown so AI can read them reliably.
+      The desktop app uses the remote MinerU service by default.
     config_schema:
       mode:
         label: Service Mode
-        description: Choose between local or remote MinerU service
+        description: Use the hosted MinerU service by default, or switch to a self-hosted endpoint.
         options:
-          local: Local (Run on this computer)
-          remote: Remote (Use remote API)
+          remote: Remote (Recommended)
+          local: Local / Self-hosted
       remote_url:
         label: Remote API URL
-        description: MinerU remote API endpoint (remote mode only)
+        description: Remote MinerU API endpoint used for PDF/DOCX parsing.
       port:
         label: Local Service Port
-        description: Port for local MinerU service (default: 18000)
+        description: Port for a self-hosted MinerU service when local mode is selected.
       backend:
         label: Parsing Backend
         description: |
-          Backend for document parsing:
+          Backend for PDF/DOCX to Markdown conversion:
           - hybrid-auto-engine: High accuracy, multi-language (recommended)
           - pipeline: General purpose, hallucination-free
           - vlm-auto-engine: High accuracy, Chinese/English only
@@ -204,7 +195,7 @@ i18n:
           vlm-auto-engine: VLM Auto Engine (Chinese/English)
       default_lang:
         label: Default Language
-        description: Default language for document parsing
+        description: Default language hint for document parsing.
         options:
           ch: Chinese/English
           en: English
@@ -212,10 +203,10 @@ i18n:
           japan: Japanese
       formula_enable:
         label: Enable Formula Parsing
-        description: Parse mathematical formulas to LaTeX format
+        description: Convert mathematical formulas to LaTeX when available.
       table_enable:
         label: Enable Table Parsing
-        description: Parse tables to HTML format
+        description: Convert tables to HTML when available.
       auto_start:
-        label: Auto-start Service
-        description: Automatically start local MinerU service when needed
+        label: Auto-start Local Service
+        description: Only used in local mode to start a self-hosted MinerU service automatically.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Agent Module - Helper Functions
  *
  * Utility functions shared across the agent module.
@@ -13,6 +13,8 @@ import { getConfig, getTempSpacePath } from '../config.service'
 import { getSpace } from '../space.service'
 import { getAISourceManager } from '../ai-sources'
 import { getAppManager } from '../../apps/manager'
+import { resolveMcpCommand, resolveMcpEnv } from '../../apps/presets/resolve-mcp'
+import { getMinerUService } from '../mineru'
 import type { McpSpec } from '../../apps/spec/schema'
 import type { ApiCredentials } from './types'
 
@@ -349,9 +351,6 @@ export function getDbMcpServers(spaceId: string): Record<string, unknown> | null
   const mcpApps = manager.listEffectiveMcpApps(spaceId)
   if (mcpApps.length === 0) return null
 
-  // Import MCP command resolver
-  const { resolveMcpCommand, resolveMcpEnv } = require('../../apps/presets/resolve-mcp')
-
   const servers: Record<string, unknown> = {}
   for (const app of mcpApps) {
     if (app.status === 'paused') continue
@@ -401,41 +400,35 @@ export function getDbMcpServers(spaceId: string): Record<string, unknown> | null
 
 export async function ensureMinerUServiceReady(spaceId: string): Promise<void> {
   const manager = getAppManager()
-  if (!manager) return
+  if (!manager) {
+    console.warn('[MinerU] AppManager not available, skipping MinerU service init')
+    return
+  }
 
-  const mineruApp = manager
-    .listEffectiveMcpApps(spaceId)
-    .find(app => app.specId === 'mineru' && app.status === 'active')
+  const effectiveApps = manager.listEffectiveMcpApps(spaceId)
+  const mineruApp = effectiveApps
+    .find(app => app.specId.toLowerCase() === 'mineru' && app.status === 'active')
 
-  if (!mineruApp) return
+  if (!mineruApp) {
+    const appList = effectiveApps.map(a => `${a.specId}(${a.status})`).join(', ')
+    console.warn(`[MinerU] MinerU app not found or not active for space ${spaceId}. Available MCP apps: [${appList}]. PDF/DOCX parsing will be unavailable.`)
+    return
+  }
 
   const userConfig = mineruApp.userConfig ?? {}
-  const mode = String(userConfig.mode || 'local') as 'local' | 'remote'
+  const mode = String(userConfig.mode || 'remote') as 'local' | 'remote'
   const port = Number(userConfig.port || 18000)
-  const remoteUrl = userConfig.remote_url ? String(userConfig.remote_url) : undefined
-  const autoStart = userConfig.auto_start !== undefined ? String(userConfig.auto_start) !== 'false' : true
+  const remoteUrl = userConfig.remote_url ? String(userConfig.remote_url) : 'https://mineru.net'
+  const autoStart = userConfig.auto_start !== undefined ? String(userConfig.auto_start) !== 'false' : false
   const backend = userConfig.backend ? String(userConfig.backend) : 'hybrid-auto-engine'
   const defaultLang = userConfig.default_lang ? String(userConfig.default_lang) : 'ch'
 
-  const { getMinerUService } = await import('../mineru')
   const mineru = getMinerUService()
   const status = mineru.getStatus()
 
   if (!status) {
-    await mineru.initialize({
-      mode,
-      port,
-      remoteUrl,
-      autoStart,
-      backend: backend as any,
-      defaultLang
-    })
-    return
-  }
-
-  const healthy = await mineru.isHealthy().catch(() => false)
-  if (!healthy && autoStart) {
-    await mineru.restart().catch(async () => {
+    console.log(`[MinerU] Initializing service (mode=${mode}, port=${port}, autoStart=${autoStart})...`)
+    try {
       await mineru.initialize({
         mode,
         port,
@@ -444,7 +437,33 @@ export async function ensureMinerUServiceReady(spaceId: string): Promise<void> {
         backend: backend as any,
         defaultLang
       })
-    })
+      console.log('[MinerU] Service initialized successfully')
+    } catch (error) {
+      console.error('[MinerU] Failed to initialize service:', error instanceof Error ? error.message : error)
+      throw error
+    }
+    return
+  }
+
+  const healthy = await mineru.isHealthy().catch(() => false)
+  if (!healthy && mode === 'local' && autoStart) {
+    console.log('[MinerU] Local service unhealthy, attempting restart...')
+    try {
+      await mineru.restart()
+      console.log('[MinerU] Service restarted successfully')
+    } catch (restartError) {
+      console.warn('[MinerU] Restart failed, re-initializing:', restartError instanceof Error ? restartError.message : restartError)
+      await mineru.initialize({
+        mode,
+        port,
+        remoteUrl,
+        autoStart,
+        backend: backend as any,
+        defaultLang
+      })
+    }
+  } else if (!healthy) {
+    console.warn(`[MinerU] ${mode === 'remote' ? 'Remote' : 'Local'} service is unhealthy`)
   }
 }
 
@@ -475,7 +494,7 @@ export function getMcpServersForRequires(
 
   for (const dep of requiredMcps) {
     const app = allMcpApps.find(
-      (a) => a.specId === dep.id && a.status === 'active'
+      (a) => a.specId.toLowerCase() === dep.id.toLowerCase() && a.status === 'active'
     )
     if (!app) {
       console.warn(

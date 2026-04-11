@@ -14,6 +14,7 @@ import { getRegistryStats, getOrphanProcesses } from '../process-guardian'
 import { getRecentEvents } from '../health-checker'
 import { sanitizeReport } from './sanitizer'
 import { cleanupOrphans } from '../process-guardian/cleaner'
+import { getAppManager } from '../../../apps/manager'
 
 /**
  * Collect full diagnostic report
@@ -74,7 +75,6 @@ export async function collectDiagnosticReport(): Promise<DiagnosticReport> {
       apiUrlHost,
       mcpServerCount: (() => {
         try {
-          const { getAppManager } = require('../../../apps/manager')
           const manager = getAppManager()
           return manager ? manager.listApps({ type: 'mcp' }).filter((a: any) => a.status !== 'uninstalled').length : 0
         } catch { return 0 }

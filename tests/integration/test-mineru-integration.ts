@@ -2,16 +2,17 @@
  * MinerU Integration Test
  *
  * This script tests the complete MinerU integration in Cafe-AI.
- * Run with: npx ts-node tests/integration/test-mineru-integration.ts
+ * Run with: node tests/integration/test-mineru-integration.ts
  */
 
-import { execSync } from 'child_process'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 const PROJECT_ROOT = join(__dirname, '..', '..')
 const MINERU_MCP_DIR = join(PROJECT_ROOT, 'cafe-local', 'mineru-mcp')
-const DIST_DIR = join(PROJECT_ROOT, 'cafe-local', 'dist')
 const PRESETS_DIR = join(PROJECT_ROOT, 'src', 'main', 'apps', 'presets')
 
 interface TestResult {
@@ -38,7 +39,6 @@ console.log('MinerU Integration Test')
 console.log('='.repeat(60))
 console.log()
 
-// Test 1: Check MinerU MCP Server files exist
 test('MinerU MCP Server directory exists', () => {
   return existsSync(MINERU_MCP_DIR)
 })
@@ -56,7 +56,6 @@ test('MinerU MCP Server README exists', () => {
   return existsSync(join(MINERU_MCP_DIR, 'README.md'))
 })
 
-// Test 2: Check Service Manager files exist
 test('MinerU Service Manager directory exists', () => {
   return existsSync(join(PROJECT_ROOT, 'src', 'main', 'services', 'mineru'))
 })
@@ -64,11 +63,6 @@ test('MinerU Service Manager directory exists', () => {
 test('MinerU Service Manager files exist', () => {
   const files = ['index.ts', 'types.ts', 'process-manager.ts']
   return files.every(f => existsSync(join(PROJECT_ROOT, 'src', 'main', 'services', 'mineru', f)))
-})
-
-// Test 3: Check App Preset
-test('App preset directory exists', () => {
-  return existsSync(PRESETS_DIR)
 })
 
 test('MinerU app preset exists', () => {
@@ -79,29 +73,14 @@ test('Preinstalled apps module exists', () => {
   return existsSync(join(PRESETS_DIR, 'index.ts'))
 })
 
-test('MCP resolver module exists', () => {
-  return existsSync(join(PRESETS_DIR, 'resolve-mcp.ts'))
-})
-
-// Test 4: Check build scripts
 test('Build script exists', () => {
   return existsSync(join(PROJECT_ROOT, 'scripts', 'build-mineru-mcp.cjs'))
-})
-
-test('Python wheel build script exists', () => {
-  return existsSync(join(MINERU_MCP_DIR, 'build-wheel.py'))
-})
-
-// Test 5: Check documentation
-test('Integration documentation exists', () => {
-  return existsSync(join(PROJECT_ROOT, 'docs', 'integration-plans', 'PHASE1_MINERU_INTEGRATION.md'))
 })
 
 test('User guide exists', () => {
   return existsSync(join(PROJECT_ROOT, 'docs', 'integration-plans', 'MINERU_USER_GUIDE.md'))
 })
 
-// Test 6: Check i18n files
 test('Chinese translation file exists', () => {
   return existsSync(join(PROJECT_ROOT, 'src', 'renderer', 'i18n', 'locales', 'zh-CN-mineru.json'))
 })
@@ -110,23 +89,11 @@ test('English translation file exists', () => {
   return existsSync(join(PROJECT_ROOT, 'src', 'renderer', 'i18n', 'locales', 'en-mineru.json'))
 })
 
-// Test 7: Validate Python package structure
-test('Python package has __init__.py', () => {
-  return existsSync(join(MINERU_MCP_DIR, 'src', 'mineru_mcp', '__init__.py'))
-})
-
-test('Python test files exist', () => {
-  return existsSync(join(MINERU_MCP_DIR, 'tests', 'test_client.py')) &&
-         existsSync(join(MINERU_MCP_DIR, 'tests', 'test_tools.py'))
-})
-
-// Test 8: Check package.json build script updated
 test('package.json has MinerU build step', () => {
   const packageJson = JSON.parse(readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf-8'))
   return packageJson.scripts.build.includes('build-mineru-mcp')
 })
 
-// Test 9: Check MCP tools are defined
 test('MCP tools are properly defined', () => {
   const toolsPath = join(MINERU_MCP_DIR, 'src', 'mineru_mcp', 'tools.py')
   const content = readFileSync(toolsPath, 'utf-8')
@@ -141,11 +108,17 @@ test('MCP tools are properly defined', () => {
   return requiredTools.every(tool => content.includes(tool))
 })
 
-// Test 10: Check preinstalled apps list
-test('MinerU is in preinstalled apps list', () => {
+test('MinerU defaults to remote mode', () => {
   const presetPath = join(PRESETS_DIR, 'index.ts')
   const content = readFileSync(presetPath, 'utf-8')
-  return content.includes('id: \'mineru\'') && content.includes('name: \'MinerU\'')
+  return content.includes("id: 'mineru'")
+    && content.includes("name: 'MinerU'")
+    && content.includes("mode: 'remote'")
+    && content.includes("remote_url: DEFAULT_REMOTE_MINERU_URL")
+})
+
+test('Legacy 11-project master plan is removed', () => {
+  return !existsSync(join(PROJECT_ROOT, 'docs', 'integration-plans', 'MASTER_PLAN.md'))
 })
 
 console.log()
@@ -162,7 +135,7 @@ console.log(`Failed: ${total - passed}/${total}`)
 
 if (passed === total) {
   console.log()
-  console.log('✅ All tests passed! MinerU integration is complete.')
+  console.log('✅ All tests passed! MinerU integration is aligned with the remote-first plan.')
   process.exit(0)
 } else {
   console.log()

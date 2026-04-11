@@ -650,26 +650,58 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Send message (with optional images for multi-modal, optional AI Browser and thinking mode)
   sendMessage: async (content, images, files, aiBrowserEnabled, thinkingEnabled) => {
-    console.log('[ChatStore] sendMessage called')
-    console.log('[ChatStore] - content:', content ? 'yes' : 'no')
-    console.log('[ChatStore] - images:', images?.length || 0)
-    console.log('[ChatStore] - files:', files?.length || 0)
-    console.log('[ChatStore] - aiBrowserEnabled:', aiBrowserEnabled)
-    console.log('[ChatStore] - thinkingEnabled:', thinkingEnabled)
-    
-    const conversation = get().getCurrentConversation()
-    const conversationMeta = get().getCurrentConversationMeta()
-    const { currentSpaceId } = get()
+    let conversation = get().getCurrentConversation()
+    let conversationMeta = get().getCurrentConversationMeta()
+    let { currentSpaceId } = get()
 
+    // Auto-create conversation if none exists (e.g., user sends message before init completes)
     if ((!conversation && !conversationMeta) || !currentSpaceId) {
-      console.error('[ChatStore] No conversation or space selected')
-      return
+      // Try to get spaceId from space store if chat store doesn't have it
+      if (!currentSpaceId) {
+        const { useSpaceStore } = await import('../stores/space.store')
+        currentSpaceId = useSpaceStore.getState().currentSpace?.id ?? null
+        if (currentSpaceId) {
+          get().setCurrentSpace(currentSpaceId)
+        }
+      }
+
+      if (!currentSpaceId) {
+        console.error('[ChatStore] No space selected, cannot send message')
+        return
+      }
+
+      // Ensure conversations are loaded
+      const spaceState = get().getSpaceState(currentSpaceId)
+      if (spaceState.conversations.length === 0) {
+        await get().loadConversations(currentSpaceId)
+      }
+
+      // Check again after loading
+      conversation = get().getCurrentConversation()
+      conversationMeta = get().getCurrentConversationMeta()
+
+      // Still no conversation — create one
+      if (!conversation && !conversationMeta) {
+        const newConv = await get().createConversation(currentSpaceId)
+        if (newConv) {
+          conversation = newConv
+          conversationMeta = {
+            id: newConv.id,
+            spaceId: newConv.spaceId,
+            title: newConv.title,
+            createdAt: newConv.createdAt,
+            updatedAt: newConv.updatedAt,
+            messageCount: 0
+          }
+        } else {
+          console.error('[ChatStore] Failed to auto-create conversation')
+          return
+        }
+      }
     }
 
     const conversationId = conversationMeta?.id || conversation?.id
     if (!conversationId) return
-
-    console.log('[ChatStore] Sending to conversation:', conversationId)
 
     try {
       // Initialize/reset session state for this conversation

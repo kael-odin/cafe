@@ -32,6 +32,7 @@ import { getCafeDir } from '../../services/config.service'
 import { AppManagerStore } from './store'
 import { createAppManagerService } from './service'
 import { MIGRATION_NAMESPACE, migrations } from './migrations'
+import { installPreinstalledApps } from '../presets'
 import type { AppManagerService } from './types'
 
 // Re-export types for consumers
@@ -148,10 +149,8 @@ export async function initAppManager(
 
   // Install pre-installed apps (async, non-blocking)
   // These are bundled apps that come with Cafe-AI
-  import('../presets').then(({ installPreinstalledApps }) => {
-    installPreinstalledApps(service).catch(err => {
-      console.warn('[AppManager] Failed to install pre-installed apps:', err)
-    })
+  installPreinstalledApps(service).catch(err => {
+    console.warn('[AppManager] Failed to install pre-installed apps:', err)
   })
 
   const duration = performance.now() - start

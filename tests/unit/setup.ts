@@ -51,7 +51,12 @@ vi.mock('electron', () => {
       setLoginItemSettings: vi.fn(),
       getLoginItemSettings: vi.fn(() => ({ openAtLogin: false })),
       getName: vi.fn(() => 'Cafe'),
-      getVersion: vi.fn(() => '1.0.0-test')
+      getVersion: vi.fn(() => '1.0.0-test'),
+      on: vi.fn(),
+      once: vi.fn(),
+      off: vi.fn(),
+      whenReady: vi.fn(async () => undefined),
+      isPackaged: false
     },
     BrowserWindow: vi.fn(() => ({
       webContents: {

@@ -27,7 +27,22 @@ function buildInlineFileSection(files?: FileAttachment[]): string {
   if (!files || files.length === 0) return ''
 
   const sections = files.map((file, index) => {
-    const header = [`[Attachment ${index + 1}]`, `name=${file.name || 'unnamed'}`, `type=${file.mediaType}`, `size=${file.size ?? 0}B`].join(' ')
+    const headerParts = [
+      `[Attachment ${index + 1}]`,
+      `name=${file.name || 'unnamed'}`,
+      `type=${file.mediaType}`,
+      `size=${file.size ?? 0}B`
+    ]
+
+    if (file.path) {
+      headerParts.push(`uploaded_path=${file.path}`)
+    }
+
+    const header = headerParts.join(' ')
+
+    if (file.extractedText) {
+      return `${header}\ncontent:\n${file.extractedText}`
+    }
 
     if (TEXT_LIKE_FILE_TYPES.has(file.mediaType)) {
       try {
@@ -41,24 +56,22 @@ function buildInlineFileSection(files?: FileAttachment[]): string {
       }
     }
 
-    return `${header}\ncontent: [binary document attached; inline text extraction not available yet]`
+    if (file.parseStatus === 'failed') {
+      return `${header}\ncontent: [Document parsing failed before the model received this message. Do not ask the user for a file path; the upload is already attached in Cafe. Error: ${file.parseError || 'unknown'}. File name: ${file.name || 'unnamed'}]`
+    }
+    if (file.parseStatus === 'pending') {
+      return `${header}\ncontent: [Document parsing is still pending. Do not ask the user for a file path; the upload is already attached in Cafe. If you need to call a tool, use uploaded_path from this attachment. File name: ${file.name || 'unnamed'}]`
+    }
+    if (file.parseStatus === 'fallback') {
+      return `${header}\ncontent: [Binary document could not be pre-parsed because the MinerU document parsing service is unavailable. Do not ask the user for a file path; the upload is already attached in Cafe. If you need to call a tool, use uploaded_path from this attachment. File name: ${file.name || 'unnamed'} (${file.mediaType}). Tell the user that document parsing is currently unavailable and ask them to retry or check MinerU settings.]`
+    }
+
+    return `${header}\ncontent: [Binary document: ${file.name || 'unnamed'} (${file.mediaType})]`
   })
 
-  return `\n\n<attached_files>\nThe user uploaded the following files. Use their contents directly when answering.\n\n${sections.join('\n\n')}\n</attached_files>`
+  return `\n\n<attached_files>\nThe user uploaded the following files. Use their contents directly when answering. If a tool needs a path, prefer uploaded_path from each attachment rather than guessing a desktop location.\n\n${sections.join('\n\n')}\n</attached_files>`
 }
 
-
-// ============================================
-// Canvas Context Formatting
-// ============================================
-
-/**
- * Format Canvas Context for injection into user message
- * Returns empty string if no meaningful context to inject
- *
- * This provides AI awareness of what the user is currently viewing
- * in the content canvas (tabs, files, URLs, etc.)
- */
 export function formatCanvasContext(canvasContext?: CanvasContext): string {
   if (!canvasContext?.isOpen || canvasContext.tabCount === 0) {
     return ''
@@ -78,8 +91,6 @@ export function formatCanvasContext(canvasContext?: CanvasContext): string {
     tabsSummary += `\n... (${allLines.length - MAX_TABS_LINES} more tabs)`
   }
 
-  // Hard cap injected context to prevent provider context-length errors.
-  // (Providers like Copilot/Tencent may have smaller limits than Claude.)
   if (tabsSummary.length > MAX_CONTEXT_CHARS) {
     tabsSummary = tabsSummary.slice(0, MAX_CONTEXT_CHARS) + '\n... (canvas context truncated)'
   }
@@ -97,18 +108,6 @@ ${tabsSummary}
 `
 }
 
-// ============================================
-// Multi-Modal Message Building
-// ============================================
-
-/**
- * Build multi-modal message content for Claude API
- *
- * @param text - Text content of the message
- * @param images - Optional image attachments
- * @param files - Optional file attachments (PDF, DOCX, etc.)
- * @returns Plain text string or array of content blocks for multi-modal
- */
 export function buildMessageContent(
   text: string,
   images?: ImageAttachment[],
@@ -116,15 +115,12 @@ export function buildMessageContent(
 ): string | Array<{ type: string; [key: string]: unknown }> {
   const textWithFiles = text + buildInlineFileSection(files)
 
-  // If no images, return plain text so all providers can reliably read file contents.
   if (!images || images.length === 0) {
     return textWithFiles
   }
 
-  // Build content blocks array for multi-modal message
   const contentBlocks: Array<{ type: string; [key: string]: unknown }> = []
 
-  // Add text block first (including inlined file contents)
   if (textWithFiles.trim()) {
     contentBlocks.push({
       type: 'text',
@@ -132,7 +128,6 @@ export function buildMessageContent(
     })
   }
 
-  // Add image blocks
   for (const image of images) {
     contentBlocks.push({
       type: 'image',
@@ -147,33 +142,15 @@ export function buildMessageContent(
   return contentBlocks
 }
 
-// ============================================
-// SDK Message Parsing
-// ============================================
-
-/**
- * Generate a unique thought ID
- */
 function generateThoughtId(): string {
   return `thought-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-
-/**
- * Parse SDK message into a Thought object
- *
- * @param message - Raw SDK message
- * @param displayModel - The actual model name to display (user-configured model, not SDK's internal model)
- * @returns Thought object or null if message type is not relevant
- */
 export function parseSDKMessage(message: SDKMessage, displayModel?: string): Thought | null {
   const timestamp = new Date().toISOString()
 
-  // System initialization
   if (message.type === 'system') {
     if (message.subtype === 'init') {
-      // Use displayModel (user's configured model) instead of SDK's internal model
-      // This ensures users see the actual model they configured, not the spoofed Claude model
       const modelName = displayModel || message.model || 'claude'
       return {
         id: generateThoughtId(),
@@ -185,11 +162,7 @@ export function parseSDKMessage(message: SDKMessage, displayModel?: string): Tho
     return null
   }
 
-  // Assistant messages (thinking, tool_use, text blocks)
   if (message.type === 'assistant') {
-    // When SDK reports an error on assistant message, skip it — the subsequent result message
-    // (is_error=true) is the authoritative error source and will create the error thought.
-    // This avoids duplicate error entries in the thinking timeline.
     if (message.error) {
       console.log(`[parseSDKMessage] SDK assistant error: ${message.error}, skipping (handled by result message)`)
       return null
@@ -198,18 +171,8 @@ export function parseSDKMessage(message: SDKMessage, displayModel?: string): Tho
     const content = message.message?.content
     if (Array.isArray(content)) {
       for (const block of content) {
-        // Thinking blocks - SKIP: handled by stream_event (content_block_start/delta/stop)
-        // Streaming provides real-time incremental updates, complete message would duplicate
-        if (block.type === 'thinking') {
-          continue  // Skip - already sent via agent:thought + agent:thought-delta
-        }
-        // Tool use blocks - SKIP: handled by stream_event (content_block_start/delta/stop)
-        // Streaming provides immediate tool name display and param updates
-        if (block.type === 'tool_use') {
-          continue  // Skip - already sent via agent:thought + agent:thought-delta
-        }
-        // Text blocks - send to timeline for AI intermediate responses display
-        // Note: Message bubble is handled separately by agent:message via stream_event
+        if (block.type === 'thinking') continue
+        if (block.type === 'tool_use') continue
         if (block.type === 'text' && block.text) {
           return {
             id: generateThoughtId(),
@@ -223,25 +186,21 @@ export function parseSDKMessage(message: SDKMessage, displayModel?: string): Tho
     return null
   }
 
-  // User messages (tool results or command output)
   if (message.type === 'user') {
     const content = message.message?.content
 
-    // Handle slash command output: <local-command-stdout>...</local-command-stdout>
-    // These are returned as user messages with isReplay: true
     if (typeof content === 'string') {
       const match = content.match(/<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/)
       if (match) {
         return {
           id: generateThoughtId(),
-          type: 'text',  // Render as text block (will show in assistant bubble)
+          type: 'text',
           content: match[1].trim(),
           timestamp
         }
       }
     }
 
-    // Handle tool results (array content)
     if (Array.isArray(content)) {
       for (const block of content) {
         if (block.type === 'tool_result') {
@@ -264,9 +223,6 @@ export function parseSDKMessage(message: SDKMessage, displayModel?: string): Tho
     return null
   }
 
-  // Final result
-  // Simple approach: always use message.result regardless of is_error
-  // The result field contains the actual content (success message or error details)
   if (message.type === 'result') {
     const resultContent = message.message?.result || message.result || ''
     const isError = message.is_error || false
@@ -289,13 +245,6 @@ export function parseSDKMessage(message: SDKMessage, displayModel?: string): Tho
   return null
 }
 
-// ============================================
-// Token Usage Extraction
-// ============================================
-
-/**
- * Extract single API call usage from assistant message
- */
 export function extractSingleUsage(assistantMsg: SDKAssistantMessage): UsageInfo | null {
   const msgUsage = assistantMsg.message?.usage
   if (!msgUsage) return null
@@ -308,15 +257,11 @@ export function extractSingleUsage(assistantMsg: SDKAssistantMessage): UsageInfo
   }
 }
 
-/**
- * Extract token usage from result message
- */
 export function extractResultUsage(resultMsg: SDKResultMessage, lastSingleUsage: UsageInfo | null): ResultUsageInfo | null {
   const modelUsage = resultMsg.modelUsage as Record<string, { contextWindow?: number }> | undefined
   const totalCostUsd = resultMsg.total_cost_usd as number | undefined
 
-  // Get context window from first model in modelUsage (usually only one model)
-  let contextWindow = 200000  // Default to 200K
+  let contextWindow = 200000
   if (modelUsage) {
     const firstModel = Object.values(modelUsage)[0]
     if (firstModel?.contextWindow) {
@@ -324,8 +269,6 @@ export function extractResultUsage(resultMsg: SDKResultMessage, lastSingleUsage:
     }
   }
 
-  // Use last API call usage (single) + cumulative cost
-  // Prefer result.usage (accumulated from message_delta, more accurate than message_start)
   if (lastSingleUsage) {
     const resultUsage = resultMsg.usage as { output_tokens?: number, input_tokens?: number } | undefined
     return {
@@ -337,7 +280,6 @@ export function extractResultUsage(resultMsg: SDKResultMessage, lastSingleUsage:
     }
   }
 
-  // Fallback: If no assistant message, use result.usage (cumulative, less accurate but has data)
   const usage = resultMsg.usage as {
     input_tokens?: number
     output_tokens?: number

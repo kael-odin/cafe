@@ -55,6 +55,10 @@ export interface ParseDocumentOptions {
   /** Path to the document file */
   filePath: string
 
+  /** Original file name (used for FormData upload and result key lookup).
+   *  If not provided, derived from filePath. */
+  fileName?: string
+
   /** Language code */
   lang?: string
 
