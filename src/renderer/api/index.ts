@@ -1787,6 +1787,21 @@ export const api = {
     return window.Cafe.imSessionsList(appId)
   },
 
+  imSessionsSetProactive: async (input: { appId: string; channel: string; chatId: string; proactive: boolean }): Promise<ApiResponse> => {
+    if (!isElectron()) { return { success: false, error: 'Only available in desktop app' } }
+    return window.Cafe.imSessionsSetProactive(input)
+  },
+
+  imSessionsRemove: async (input: { appId: string; channel: string; chatId: string }): Promise<ApiResponse> => {
+    if (!isElectron()) { return { success: false, error: 'Only available in desktop app' } }
+    return window.Cafe.imSessionsRemove(input)
+  },
+
+  imSessionsSetCustomName: async (input: { appId: string; channel: string; chatId: string; name: string }): Promise<ApiResponse> => {
+    if (!isElectron()) { return { success: false, error: 'Only available in desktop app' } }
+    return window.Cafe.imSessionsSetCustomName(input)
+  },
+
   appImChatMessages: async (appId: string, spaceId: string, channel: string, chatType: 'direct' | 'group', chatId: string): Promise<ApiResponse> => {
     if (!isElectron()) { return { success: false, error: 'Only available in desktop app' } }
     return window.Cafe.appImChatMessages(appId, spaceId, channel, chatType, chatId)

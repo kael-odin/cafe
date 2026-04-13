@@ -421,6 +421,9 @@ export interface CafeAPI {
 
   // IM Session Chat
   imSessionsList: (appId?: string) => Promise<IpcResponse>
+  imSessionsSetProactive: (input: { appId: string; channel: string; chatId: string; proactive: boolean }) => Promise<IpcResponse>
+  imSessionsRemove: (input: { appId: string; channel: string; chatId: string }) => Promise<IpcResponse>
+  imSessionsSetCustomName: (input: { appId: string; channel: string; chatId: string; name: string }) => Promise<IpcResponse>
   appImChatMessages: (appId: string, spaceId: string, channel: string, chatType: 'direct' | 'group', chatId: string) => Promise<IpcResponse>
   appImChatClear: (appId: string, spaceId: string, channel: string, chatType: 'direct' | 'group', chatId: string) => Promise<IpcResponse>
   onImSessionUpdated: (callback: (data: unknown) => void) => () => void
@@ -771,6 +774,9 @@ const api: CafeAPI = {
 
   // IM Session Chat
   imSessionsList: (appId) => ipcRenderer.invoke('im-sessions:list', appId),
+  imSessionsSetProactive: (input) => ipcRenderer.invoke('im-sessions:set-proactive', input),
+  imSessionsRemove: (input) => ipcRenderer.invoke('im-sessions:remove', input),
+  imSessionsSetCustomName: (input) => ipcRenderer.invoke('im-sessions:set-custom-name', input),
   appImChatMessages: (appId, spaceId, channel, chatType, chatId) =>
     ipcRenderer.invoke('app:im-chat-messages', { appId, spaceId, channel, chatType, chatId }),
   appImChatClear: (appId, spaceId, channel, chatType, chatId) =>
