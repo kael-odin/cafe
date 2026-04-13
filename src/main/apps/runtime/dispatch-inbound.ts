@@ -1,26 +1,28 @@
-﻿/**
+/**
  * apps/runtime -- Inbound Dispatch
  *
- * Unified entry point for all inbound IM messages. Channel adapters
- * (WeCom Bot, Feishu Bot, DingTalk Bot, etc.) call dispatchInboundMessage()
- * with a normalized InboundMessage + ReplyHandle. This module handles:
+ * Unified entry point for all inbound IM messages. The ImChannelManager
+ * calls dispatchInboundMessage() with a normalized InboundMessage + ReplyHandle
+ * plus the pre-resolved appId and instanceId (from the instance's binding).
  *
- *   1. Routing 鈥?which digital human (App) should handle this message
- *   2. Session key construction 鈥?per-app, per-channel, per-chat isolation
- *   3. Execution 鈥?delegates to app-chat.ts for conversational AI
+ * This module handles:
+ *   1. App validation — ensure the bound App exists and has a spaceId
+ *   2. Session key construction — per-app, per-channel, per-chat isolation
+ *   3. Session registration — track IM sessions in the registry
+ *   4. Execution — delegates to app-chat.ts for conversational AI
  *
  * Design principles:
- * - No IM protocol details 鈥?only works with InboundMessage + ReplyHandle
+ * - No routing logic — appId is provided by the caller (ImChannelManager)
+ * - No IM protocol details — only works with InboundMessage + ReplyHandle
  * - No direct dependency on any specific adapter
- * - Resolves its own dependencies via module-level accessors (getAppManager, getConfig)
  */
 
 import type { InboundMessage, ReplyHandle } from '../../../shared/types/inbound-message'
-import type { InstalledApp } from '../manager'
 import { getAppManager } from '../manager'
-import { getConfig } from '../../services/config.service'
 import { sendAppChatMessage, buildImSessionKey } from './app-chat'
 import { getImSessionRegistry } from './im-session-registry'
+import { sendToRenderer } from '../../services/window.service'
+import { broadcastToAll } from '../../http/websocket'
 import { stopGeneration } from '../../services/agent/control'
 import { activeSessions } from '../../services/agent/session-manager'
 
@@ -45,121 +47,71 @@ function isStopCommand(body: string): boolean {
 }
 
 // ============================================
-// Routing
-// ============================================
-
-/**
- * Find the App that should handle an inbound IM message.
- *
- * Strategy (Phase 1):
- *   1. Scan active automation Apps for subscriptions matching msg.channel
- *   2. If multiple match, prefer one with a chatId filter matching msg.chatId
- *   3. Fallback to global defaultAppId from imChannels config
- *   4. Legacy fallback: wecomBot.defaultAppId (backward compat)
- *
- * @returns The matched App, or null if no route found
- */
-function resolveTargetApp(msg: InboundMessage): InstalledApp | null {
-  const manager = getAppManager()
-  if (!manager) return null
-
-  const activeApps = manager.listApps({ status: 'active', type: 'automation' })
-
-  // Phase 1: scan subscriptions for matching channel source type
-  // Map channel identifiers to subscription source types
-  // e.g., 'wecom-bot' 鈫?'wecom' (the source.type used in App subscriptions)
-  const channelToSourceType: Record<string, string> = {
-    'wecom-bot': 'wecom',
-    'feishu-bot': 'feishu',
-    'dingtalk-bot': 'dingtalk',
-  }
-  const sourceType = channelToSourceType[msg.channel] ?? msg.channel
-
-  let bestMatch: InstalledApp | null = null
-
-  for (const app of activeApps) {
-    if (app.spec.type !== 'automation') continue
-    const subs = app.spec.subscriptions ?? []
-
-    for (const sub of subs) {
-      if (sub.source.type !== sourceType) continue
-
-      // Check chatId filter (if specified in subscription config)
-      const subChatId = sub.source.config?.chatId
-      if (subChatId && subChatId === msg.chatId) {
-        // Exact chatId match 鈥?highest priority
-        return app
-      }
-
-      // Channel match without chatId filter 鈥?candidate for fallback
-      if (!subChatId && !bestMatch) {
-        bestMatch = app
-      }
-    }
-  }
-
-  if (bestMatch) return bestMatch
-
-  // Fallback: global defaultAppId
-  const config = getConfig()
-  const defaultAppId =
-    config.imChannels?.defaultAppId ??
-    (config.wecomBot as any)?.defaultAppId // backward compat: old config may still have it here
-
-  if (defaultAppId) {
-    const app = manager.getApp(defaultAppId)
-    if (app) return app
-    console.warn(`${LOG_TAG} defaultAppId "${defaultAppId}" not found`)
-  }
-
-  return null
-}
-
-// ============================================
 // Dispatch
 // ============================================
 
 /**
- * Dispatch an inbound IM message to the appropriate digital human.
+ * Dispatch an inbound IM message to a specific digital human.
  *
- * This is the single entry point called by all channel adapters.
- * It resolves the target App, constructs an isolated session key,
- * and delegates to app-chat for conversational AI execution.
+ * Called by the ImChannelManager's onInbound callback, which provides
+ * the pre-resolved appId and instanceId from the instance's config binding.
  *
  * @param msg - Normalized inbound message from the channel adapter
  * @param reply - Reply handle for sending responses back to the IM channel
+ * @param appId - Bound digital human App ID (from instance config)
+ * @param instanceId - IM channel instance ID (for session tracking)
  */
 export async function dispatchInboundMessage(
   msg: InboundMessage,
-  reply: ReplyHandle
+  reply: ReplyHandle,
+  appId: string,
+  instanceId: string
 ): Promise<void> {
-  const app = resolveTargetApp(msg)
+  const manager = getAppManager()
+  if (!manager) {
+    console.warn(`${LOG_TAG} App manager not initialized`)
+    return
+  }
 
+  const app = manager.getApp(appId)
   if (!app) {
     console.log(
-      `${LOG_TAG} No route for inbound message: ` +
-      `channel=${msg.channel}, chatId=${msg.chatId}, chatType=${msg.chatType}`
+      `${LOG_TAG} No app found for appId="${appId}": ` +
+      `channel=${msg.channel}, chatId=${msg.chatId}, instanceId=${instanceId}`
     )
     return
   }
 
   if (!app.spaceId) {
-    console.warn(`${LOG_TAG} App "${app.spec.name}" (${app.id}) has no spaceId 鈥?cannot dispatch`)
+    console.warn(`${LOG_TAG} App "${app.spec.name}" (${app.id}) has no spaceId — cannot dispatch`)
     return
   }
 
   // Build isolated session key
   const conversationId = buildImSessionKey(app.id, msg.channel, msg.chatType, msg.chatId)
 
-  // Register session in ImSessionRegistry (idempotent 鈥?updates lastActiveAt on repeat)
+  // Register session in ImSessionRegistry (idempotent — updates lastActiveAt on repeat)
   const registry = getImSessionRegistry()
   if (registry) {
     const displayName = msg.chatName ?? msg.fromName ?? msg.chatId
-    registry.register(app.id, msg.channel, msg.chatId, msg.chatType, {
+    registry.register(app.id, msg.channel, msg.chatId, msg.chatType, instanceId, {
       displayName,
       lastSender: msg.fromName,
       lastMessage: msg.body.slice(0, 50),
     })
+
+    // Notify renderer of session update for real-time panel refresh
+    const sessionEvent = {
+      appId: app.id,
+      channel: msg.channel,
+      chatId: msg.chatId,
+      chatType: msg.chatType,
+      instanceId,
+      lastMessage: msg.body.slice(0, 50),
+      lastSender: msg.fromName,
+    }
+    sendToRenderer('app:im-session-updated', sessionEvent)
+    broadcastToAll('app:im-session-updated', sessionEvent)
   }
 
   // ── Stop command: abort a stuck or running generation ──
@@ -187,8 +139,8 @@ export async function dispatchInboundMessage(
 
   console.log(
     `${LOG_TAG} Routing: channel=${msg.channel}, chatId=${msg.chatId}, ` +
-    `chatType=${msg.chatType} 鈫?app="${app.spec.name}" (${app.id}), ` +
-    `session=${conversationId}, msgLen=${msg.body.length}`
+    `chatType=${msg.chatType}, instanceId=${instanceId} → ` +
+    `app="${app.spec.name}" (${app.id}), session=${conversationId}, msgLen=${msg.body.length}`
   )
 
   try {
@@ -211,10 +163,10 @@ export async function dispatchInboundMessage(
     )
     // Attempt to send error notification back to the IM channel
     try {
-      const errorMsg = `鈿狅笍 Error: ${(err as Error).message?.slice(0, 200) ?? 'Unknown error'}`
+      const errorMsg = `⚠️ Error: ${(err as Error).message?.slice(0, 200) ?? 'Unknown error'}`
       await reply.send(errorMsg)
     } catch {
-      // Reply channel may be unavailable 鈥?nothing more we can do
+      // Reply channel may be unavailable — nothing more we can do
     }
   }
 }

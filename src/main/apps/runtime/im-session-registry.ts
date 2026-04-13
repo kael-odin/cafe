@@ -58,21 +58,23 @@ export class ImSessionRegistry {
     channel: string,
     chatId: string,
     chatType: 'direct' | 'group',
-    opts?: { displayName?: string; lastSender?: string; lastMessage?: string; instanceId?: string }
+    instanceId: string,
+    opts?: { displayName?: string; lastSender?: string; lastMessage?: string }
   ): void {
     const key = this.buildKey(appId, channel, chatId)
     const existing = this.sessions.get(key)
 
     if (existing) {
-      // displayName is intentionally NOT updated 鈥?stable after first registration
+      // displayName is intentionally NOT updated — stable after first registration
       existing.lastActiveAt = Date.now()
+      existing.instanceId = instanceId // Always update to latest instance
       if (opts?.lastSender !== undefined) existing.lastSender = opts.lastSender
       if (opts?.lastMessage !== undefined) existing.lastMessage = opts.lastMessage.slice(0, 50)
     } else {
       this.sessions.set(key, {
         appId,
         channel,
-        instanceId: opts?.instanceId ?? '',
+        instanceId,
         chatId,
         chatType,
         displayName: opts?.displayName || chatId,

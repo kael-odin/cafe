@@ -373,6 +373,10 @@ interface CafeConfig {
   wecomBot?: import('../../shared/types/notification-channels').WecomBotConfig
   // IM channel configuration (multi-instance: WeCom Bot, Feishu Bot, DingTalk Bot, etc.)
   imChannels?: import('../../shared/types/notification-channels').ImChannelsConfig
+  // Notification preferences (task completion, etc.)
+  notifications?: {
+    taskComplete?: boolean
+  }
   // Analytics configuration (auto-generated on first launch)
   analytics?: AnalyticsConfig
   // Global layout preferences (panel sizes and visibility)
@@ -526,6 +530,9 @@ const DEFAULT_CONFIG: CafeConfig = {
     completed: false
   },
   mcpServers: {},  // Empty by default
+  notifications: {
+    taskComplete: true
+  },
   isFirstLaunch: true
 }
 
